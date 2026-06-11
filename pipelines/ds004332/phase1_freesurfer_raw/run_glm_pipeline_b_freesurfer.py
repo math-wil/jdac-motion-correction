@@ -75,7 +75,7 @@ THICKNESS_CSV = REPO / "results/ds004332/phase1/ThickAvg_phase1_complete.csv"
 # Agitation Clinica : score de mouvement par sujet x run (identique a la version FastSurfer)
 AGITATION_CSV = REPO / "results/ds004332/agitation/ds004332_agitation_clinica.csv"
 # Demographics BIDS
-PARTICIPANTS = HOME / "Documents/raw/ds004332/participants.tsv"
+PARTICIPANTS = HOME / "Documents/raw_datasets/ds004332/participants.tsv"
 # Sortie, dans TON dossier de resultats ds004332
 OUTPUT_CSV = REPO / "results/ds004332/phase1/glm_pipeline_b_freesurfer_results.csv"
 

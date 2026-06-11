@@ -17,7 +17,7 @@ import ants
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-RAW_DIR   = Path.home() / "Documents/raw/ds004332"
+RAW_DIR   = Path.home() / "Documents/raw_datasets/ds004332"
 OUT_DIR   = Path.home() / "Documents/derivatives/ds004332/clinica_preproc"
 MNI_PATH  = str(Path.home() / ".antspy/mni.nii.gz")
 N_JOBS    = min(6, os.cpu_count())

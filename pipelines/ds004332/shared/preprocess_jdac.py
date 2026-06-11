@@ -17,18 +17,18 @@ Mode paired (--paired) — trois images par sujet (ref, mov1, mov2) :
 Usage :
     # Mode simple
     python pipelines/generic/preprocess_jdac.py \
-        --input_dir  ~/Documents/raw/ds000115 \
+        --input_dir  ~/Documents/raw_datasets/ds000115 \
         --output_dir ~/Documents/derivatives/ds000115/jdac_ready
 
     # Mode paired — MR-ART (défauts, pas besoin de spécifier les patterns)
     python pipelines/generic/preprocess_jdac.py \
-        --input_dir  ~/Documents/raw/MRART \
+        --input_dir  ~/Documents/raw_datasets/MRART \
         --output_dir ~/Documents/derivatives/mrart/jdac_ready \
         --paired
 
     # Mode paired — ds004332 (noms et extension différents)
     python pipelines/generic/preprocess_jdac.py \
-        --input_dir  ~/Documents/raw/ds004332 \
+        --input_dir  ~/Documents/raw_datasets/ds004332 \
         --output_dir ~/Documents/derivatives/ds004332/jdac_ready \
         --paired \
         --ref_pattern  "{sub}_acq-mpragepmcoff_rec-wore_run-01_T1w.nii" \

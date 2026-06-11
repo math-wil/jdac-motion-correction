@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 AGITATION_CLI = Path.home() / "Documents/agitation/cli.py"
-RAW_DIR       = Path.home() / "Documents/raw/ds004332"
+RAW_DIR       = Path.home() / "Documents/raw_datasets/ds004332"
 JDAC_READY    = Path.home() / "Documents/derivatives/ds004332/jdac_ready"
 JDAC_OUT      = Path.home() / "Documents/derivatives/ds004332/jdac_outputs"
 DENORM_DIR    = Path.home() / "Documents/derivatives/ds004332/jdac_outputs_denorm"
