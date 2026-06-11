@@ -24,10 +24,10 @@ import numpy as np
 import pandas as pd
 
 AGITATION_CLI = Path.home() / "Documents/agitation/cli.py"
-RAW_DIR       = Path.home() / "Documents/Datasets/ds004332"
-JDAC_READY    = Path.home() / "Documents/Results/ds004332/jdac_ready"
-JDAC_OUT      = Path.home() / "Documents/Results/ds004332/jdac_outputs"
-DENORM_DIR    = Path.home() / "Documents/Results/ds004332/jdac_outputs_denorm"
+RAW_DIR       = Path.home() / "Documents/raw/ds004332"
+JDAC_READY    = Path.home() / "Documents/derivatives/ds004332/jdac_ready"
+JDAC_OUT      = Path.home() / "Documents/derivatives/ds004332/jdac_outputs"
+DENORM_DIR    = Path.home() / "Documents/derivatives/ds004332/jdac_outputs_denorm"
 OUTPUT_CSV    = Path.home() / "Documents/motion-analysis/datasets/ds004332/results/ds004332_agitation_jdac_comparison.csv"
 
 SUBS = sorted([d.name for d in JDAC_READY.iterdir() if d.name.startswith("sub-")])

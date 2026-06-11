@@ -21,8 +21,8 @@ from pathlib import Path
 import pandas as pd
 
 AGITATION_CLI = Path.home() / "Documents/agitation/cli.py"
-JDAC_READY    = Path.home() / "Documents/Results/ds004332/jdac_ready"
-JDAC_OUT      = Path.home() / "Documents/Results/ds004332/jdac_outputs"
+JDAC_READY    = Path.home() / "Documents/derivatives/ds004332/jdac_ready"
+JDAC_OUT      = Path.home() / "Documents/derivatives/ds004332/jdac_outputs"
 OUTPUT_CSV    = Path.home() / "Documents/motion-analysis/datasets/ds004332/results/ds004332_agitation_5conditions.csv"
 
 SUBS = sorted([d.name for d in JDAC_READY.iterdir() if d.name.startswith("sub-")])

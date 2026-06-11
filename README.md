@@ -26,8 +26,8 @@ results/ds004332/             # résultats LÉGERS versionnés (CSV, figures), p
 ```
 
 ## Où sont les données (hors dépôt, trop volumineuses)
-- **Brut** : `~/Documents/Datasets/ds004332/` (BIDS).
-- **Dérivés / sorties** (preprocessing, JDAC, FreeSurfer) : `~/Documents/Results/ds004332/`.
+- **Brut** : `~/Documents/raw/ds004332/` (BIDS).
+- **Dérivés / sorties** (preprocessing, JDAC, FreeSurfer) : `~/Documents/derivatives/ds004332/`.
 - **Résultats finaux validés** : serveur **hippocampus**, `/project/hippocampus/common/mathilde/ds004332/`.
 - **Calcul** : Narval (compte ctb-sbouix). Scripts SLURM dans les dossiers de phase.
 

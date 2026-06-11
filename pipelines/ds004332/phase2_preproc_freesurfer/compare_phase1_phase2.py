@@ -36,10 +36,10 @@ COL_THICKAVG = 4
 # Regions non corticales eventuellement presentes, exclues pour coller au CSV Phase 1.
 REGIONS_EXCLUDE = {"unknown", "corpuscallosum"}
 
-DEFAULT_P1_CSV = ("/home/av62870@ens.ad.etsmtl.ca/Documents/Results/"
+DEFAULT_P1_CSV = ("/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/"
                   "freesurfer_ds004332/ThickAvg_phase1_complete.csv")
 DEFAULT_P2_DIR = "/project/hippocampus/common/mathilde/ds004332/phase2_freesurfer"
-DEFAULT_OUT = ("/home/av62870@ens.ad.etsmtl.ca/Documents/Results/"
+DEFAULT_OUT = ("/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/"
                "freesurfer_ds004332/compare_phase1_phase2_sub-01.csv")
 
 

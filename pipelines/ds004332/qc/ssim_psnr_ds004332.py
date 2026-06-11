@@ -5,7 +5,7 @@ Référence   : run-01 (sans mouvement, preprocessé FLIRT)
 Avant JDAC  : run-02 / run-03 preprocessés FLIRT (images avec mouvement)
 Après JDAC  : sorties JDAC pour run-02 / run-03
 
-Sortie : ~/Documents/Results/ds004332/results/ssim_psnr_ds004332.csv
+Sortie : ~/Documents/derivatives/ds004332/results/ssim_psnr_ds004332.csv
 """
 
 import numpy as np
@@ -14,9 +14,9 @@ import pandas as pd
 from pathlib import Path
 from skimage.metrics import structural_similarity as ssim, peak_signal_noise_ratio as psnr
 
-JDAC_READY = Path.home() / "Documents/Results/ds004332/jdac_ready"
-JDAC_OUT   = Path.home() / "Documents/Results/ds004332/jdac_outputs"
-OUTPUT_CSV = Path.home() / "Documents/Results/ds004332/results/ssim_psnr_ds004332.csv"
+JDAC_READY = Path.home() / "Documents/derivatives/ds004332/jdac_ready"
+JDAC_OUT   = Path.home() / "Documents/derivatives/ds004332/jdac_outputs"
+OUTPUT_CSV = Path.home() / "Documents/derivatives/ds004332/results/ssim_psnr_ds004332.csv"
 
 SUBS = sorted([d.name for d in JDAC_READY.glob("sub-*/")])
 

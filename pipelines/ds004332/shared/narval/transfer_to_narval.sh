@@ -19,7 +19,7 @@ fi
 NARVAL_HOST="narval.computecanada.ca"
 # ds004332_minimal contient déjà uniquement les images acq-mpragepmcoff rec-wore
 # (PMC off, sans réacquisition) — 66 NIfTI, structure sub-XX/anat/
-LOCAL_DS="$HOME/Documents/Results/ds004332_minimal"
+LOCAL_DS="$HOME/Documents/derivatives/ds004332_minimal"
 REMOTE_DEST="${NARVAL_USER}@${NARVAL_HOST}:scratch/ds004332"
 
 if [ ! -d "$LOCAL_DS" ]; then

@@ -3,8 +3,8 @@
 # Usage interactif : ./view_preproc_ds004332.sh
 # Usage direct     : ./view_preproc_ds004332.sh <1-22>
 
-RAW_DIR=~/Documents/Datasets/ds004332
-PREP_DIR=~/Documents/Results/ds004332/jdac_ready
+RAW_DIR=~/Documents/raw/ds004332
+PREP_DIR=~/Documents/derivatives/ds004332/jdac_ready
 
 open_subject() {
     local NUM=$1

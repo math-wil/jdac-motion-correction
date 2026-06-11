@@ -7,14 +7,14 @@ DivisiblePad k=16). Le preprocessing interne JDAC/MONAI est désactivé.
 Usage :
     # ds000115
     python pipelines/generic/run_jdac_preprocessed.py \
-        --input_dir  ~/Documents/Results/ds000115/jdac_ready \
-        --output_dir ~/Documents/Results/ds000115/jdac_outputs \
+        --input_dir  ~/Documents/derivatives/ds000115/jdac_ready \
+        --output_dir ~/Documents/derivatives/ds000115/jdac_outputs \
         --pattern    "{sub}/anat/{sub}_T1w_brain_norm01.nii.gz"
 
     # MR-ART headmotion1
     python pipelines/generic/run_jdac_preprocessed.py \
-        --input_dir  ~/Documents/Results/mrart/jdac_ready \
-        --output_dir ~/Documents/Results/mrart/jdac_outputs \
+        --input_dir  ~/Documents/derivatives/mrart/jdac_ready \
+        --output_dir ~/Documents/derivatives/mrart/jdac_outputs \
         --pattern    "{sub}/anat/{sub}_acq-headmotion1_T1w_brain_norm01.nii.gz"
 
 Pré-requis : lancer depuis ~/Documents/jdac/

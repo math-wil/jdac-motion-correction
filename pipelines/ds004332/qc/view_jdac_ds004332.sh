@@ -3,8 +3,8 @@
 # Usage interactif : ./view_jdac_ds004332.sh
 # Usage direct     : ./view_jdac_ds004332.sh <1-22>
 
-PREP_DIR=~/Documents/Results/ds004332/jdac_ready
-JDAC_DIR=~/Documents/Results/ds004332/jdac_outputs
+PREP_DIR=~/Documents/derivatives/ds004332/jdac_ready
+JDAC_DIR=~/Documents/derivatives/ds004332/jdac_outputs
 
 open_subject() {
     local NUM=$1

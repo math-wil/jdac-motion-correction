@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 AGITATION_CLI = Path.home() / "Documents/agitation/cli.py"
-CLINICA_DIR   = Path.home() / "Documents/Results/ds004332/clinica_preproc"
+CLINICA_DIR   = Path.home() / "Documents/derivatives/ds004332/clinica_preproc"
 OUTPUT_CSV    = Path.home() / "Documents/motion-analysis/datasets/ds004332/results/ds004332_agitation_clinica.csv"
 
 SUBS = sorted([d.name for d in CLINICA_DIR.glob("sub-*/")])

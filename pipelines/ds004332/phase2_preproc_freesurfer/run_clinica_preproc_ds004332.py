@@ -3,7 +3,7 @@ Préprocessing équivalent à Clinica t1-linear pour ds004332.
 Pipeline : N4BiasFieldCorrection → registration affine vers MNI → crop 160×192×160 → normalisation [0,1].
 
 Cible : acq-mpragepmcoff_rec-wore run-01/02/03 (22 sujets).
-Sortie : ~/Documents/Results/ds004332/clinica_preproc/<sub>/anat/<sub>_run-XX_clinica.nii.gz
+Sortie : ~/Documents/derivatives/ds004332/clinica_preproc/<sub>/anat/<sub>_run-XX_clinica.nii.gz
 
 Usage :
     conda run -n cortical-motion python3 \
@@ -17,8 +17,8 @@ import ants
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-RAW_DIR   = Path.home() / "Documents/Datasets/ds004332"
-OUT_DIR   = Path.home() / "Documents/Results/ds004332/clinica_preproc"
+RAW_DIR   = Path.home() / "Documents/raw/ds004332"
+OUT_DIR   = Path.home() / "Documents/derivatives/ds004332/clinica_preproc"
 MNI_PATH  = str(Path.home() / ".antspy/mni.nii.gz")
 N_JOBS    = min(6, os.cpu_count())
 

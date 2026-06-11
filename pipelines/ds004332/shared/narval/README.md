@@ -79,5 +79,5 @@ Après la fin des jobs, rapatrier les stats :
 
 ```bash
 rsync -avz av62870@narval.computecanada.ca:scratch/freesurfer_ds004332/ \
-    ~/Documents/Results/ds004332/freesurfer/
+    ~/Documents/derivatives/ds004332/freesurfer/
 ```
