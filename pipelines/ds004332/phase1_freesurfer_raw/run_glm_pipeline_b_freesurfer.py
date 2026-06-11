@@ -70,13 +70,14 @@ warnings.filterwarnings("ignore")  # masque les ConvergenceWarning (geres par le
 # ------------------------------------------------------------------------------
 HOME = Path("/home/av62870@ens.ad.etsmtl.ca")
 # Epaisseur : sorties FreeSurfer recon-all (ThickAvg par region, 66 runs)
-THICKNESS_CSV = HOME / "Documents/Results/freesurfer_ds004332/ThickAvg_phase1_complete.csv"
+REPO = HOME / "Documents/jdac-motion-correction"
+THICKNESS_CSV = REPO / "results/ds004332/phase1/ThickAvg_phase1_complete.csv"
 # Agitation Clinica : score de mouvement par sujet x run (identique a la version FastSurfer)
-AGITATION_CSV = HOME / "Documents/motion-analysis/results/ds004332/results/ds004332_agitation_clinica.csv"
+AGITATION_CSV = REPO / "results/ds004332/agitation/ds004332_agitation_clinica.csv"
 # Demographics BIDS
 PARTICIPANTS = HOME / "Documents/Datasets/ds004332/participants.tsv"
 # Sortie, dans TON dossier de resultats ds004332
-OUTPUT_CSV = HOME / "Documents/motion-analysis/results/ds004332/results/glm_pipeline_b_freesurfer_results.csv"
+OUTPUT_CSV = REPO / "results/ds004332/phase1/glm_pipeline_b_freesurfer_results.csv"
 
 
 def load_data():
