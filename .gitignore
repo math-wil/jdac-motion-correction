@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Gros volumes : JAMAIS dans le dépôt (voir Datasets/, Results/, hippocampus)
+*.nii
+*.nii.gz
+*.mgz
+*.mgh

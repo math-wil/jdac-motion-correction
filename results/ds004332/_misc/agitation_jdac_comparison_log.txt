@@ -1,0 +1,31 @@
+=== Dénormalisation JDAC run-02 et run-03 ===
+  run-02 : 22/22 dénormalisés
+  run-03 : 22/22 dénormalisés
+
+=== Agitation ===
+
+── raw_run-01 (22 sujets) ──
+  ✓ mean=0.485  std=0.194  min=0.145  max=1.008
+
+── raw_run-02 (22 sujets) ──
+  ✓ mean=0.967  std=0.476  min=0.354  max=2.000
+
+── raw_run-03 (22 sujets) ──
+  ✓ mean=1.029  std=0.667  min=0.379  max=3.188
+
+── jdac_run-02 (22 sujets) ──
+  ✓ mean=3.009  std=0.243  min=2.529  max=3.448
+
+── jdac_run-03 (22 sujets) ──
+  ✓ mean=2.970  std=0.220  min=2.525  max=3.343
+
+=== Résumé par condition ===
+              mean    std    min    max
+condition                              
+jdac_run-02  3.009  0.243  2.529  3.448
+jdac_run-03  2.970  0.220  2.525  3.343
+raw_run-01   0.485  0.194  0.145  1.008
+raw_run-02   0.967  0.476  0.354  2.000
+raw_run-03   1.029  0.667  0.379  3.188
+
+CSV : /home/av62870@ens.ad.etsmtl.ca/Documents/motion-analysis/datasets/ds004332/results/ds004332_agitation_jdac_comparison.csv
