@@ -16,8 +16,8 @@ Le verrou a deux lectures :
   si le preprocessing Phase 2 permet une reconstruction non nulle (recuperation).
 
 Usage (apres avoir rapatrie les sorties FreeSurfer Phase 2 sur hippocampus) :
-    python compare_phase1_phase2.py
-    python compare_phase1_phase2.py --phase2-dir <SUBJECTS_DIR_phase2> --plot
+    python compare_raw_vs_preproc.py
+    python compare_raw_vs_preproc.py --phase2-dir <SUBJECTS_DIR_phase2> --plot
 
 Le script tourne avec l'env conda cortical-motion (stdlib seule pour le coeur,
 matplotlib uniquement si --plot).

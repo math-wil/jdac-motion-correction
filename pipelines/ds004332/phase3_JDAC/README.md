@@ -24,10 +24,10 @@ But : valider la chaîne JDAC → dénorm → FreeSurfer de bout en bout sur 1 s
 1. **Entrée** : `*_clinica_synthstrip_brain.nii.gz` de sub-01 (run-01/02/03).
    - local : `derivatives/ds004332/clinica_preproc/...`
    - hippocampus : `/project/hippocampus/common/mathilde/ds004332/phase2_preproc/sub-01_run-0X/`
-2. **JDAC** : inférence avec les modèles pré-entraînés (`jdac/PretrainedModels`), logique = `JDAC_Application.ipynb` cellule 27. **À VÉRIFIER lundi** : chemins exacts des modèles + où lancer (Narval GPU vs CPU ~5-15 min/image).
-3. **Dénormalisation** : la sortie est en [0,1] (percentiles 0–98). Inversion ≈ `img × (p98 − p0) + p0`, avec p0/p98 du cerveau d'entrée. **À VÉRIFIER** : la formule exacte + la **géométrie** de la sortie (CropForeground + DivisiblePad changent les dimensions ; l'affine sauvée est celle d'origine).
-4. **FreeSurfer** : recon-all 2 passes `-noskullstrip` sur le cerveau dénormalisé. Réutiliser `../phase2_preproc_freesurfer/phase2_freesurfer.sh` (adapter l'entrée).
-5. **Comparer** l'épaisseur Phase 3 (JDAC) vs Phase 2 (prétraité) vs Phase 1 (brut), via `../phase2_preproc_freesurfer/compare_phase1_phase2.py` (à étendre à une 3e colonne JDAC).
+2. **JDAC** : `run_jdac.py` (env `cortical-motion`, lancé depuis `~/Documents/jdac`), CSV `m1_sub01_subjects.csv`. **FAIT (15/06)** : 3/3 runs, sortie [0,1], dimensions ÷16, ~8 s/run sur CPU. Sortie dans `derivatives/ds004332/jdac_m1_test/`.
+3. **Dénormalisation** (à faire) : la sortie est en [0,1] (percentiles 0–98). Inversion ≈ `img × (p98 − p0) + p0`, avec p0/p98 du cerveau d'entrée. **À VÉRIFIER** : la formule exacte + la **géométrie** de la sortie (CropForeground + DivisiblePad changent les dimensions ; l'affine sauvée est celle d'origine).
+4. **FreeSurfer** : recon-all 2 passes `-noskullstrip` sur le cerveau dénormalisé. Réutiliser `../phase2_PREPROC/recon_all_preproc.sh` (adapter l'entrée).
+5. **Comparer** l'épaisseur JDAC vs PREPROC vs RAW, via `../phase2_PREPROC/compare_raw_vs_preproc.py` (à étendre à une 3e colonne JDAC).
 
 ## À construire (pipeline final, Option 2)
 

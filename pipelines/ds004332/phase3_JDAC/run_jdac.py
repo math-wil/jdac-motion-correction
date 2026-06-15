@@ -1,8 +1,8 @@
 """
-run_jdac_with_internal_preproc.py
-----------------------------------
-Pipeline JDAC générique avec preprocessing interne MONAI.
-S'applique à n'importe quel dataset via un CSV de sujets.
+run_jdac.py
+-----------
+Inférence JDAC avec preprocessing interne MONAI (reproduit JDAC_Application.ipynb des auteurs).
+S'applique via un CSV de sujets (colonnes : sub, t1w_path, motion, stratum).
 
 Preprocessing interne appliqué :
     - CropForeground
@@ -10,13 +10,13 @@ Preprocessing interne appliqué :
     - DivisiblePad (k=16)
 
 IMPORTANT : doit être lancé depuis ~/Documents/jdac/
-car JDAC charge les poids depuis ./PretrainedModels/
+car JDAC charge les poids depuis ./PretrainedModels/ (env conda cortical-motion).
 
 Usage :
     cd ~/Documents/jdac
-    python ~/Documents/motion-analysis/pipelines/generic/run_jdac_with_internal_preproc.py \
-        --subjects /chemin/vers/subjects.csv \
-        --out_dir  /chemin/vers/outputs/
+    python ~/Documents/jdac-motion-correction/pipelines/ds004332/phase3_JDAC/run_jdac.py \
+        --subjects ~/Documents/jdac-motion-correction/pipelines/ds004332/phase3_JDAC/m1_sub01_subjects.csv \
+        --out_dir  ~/Documents/derivatives/ds004332/jdac_m1_test/
 
 Sortie par sujet :
     out_dir/sub-XXXX/sub-XXXX_T1w_jdac.nii.gz
