@@ -1,0 +1,4 @@
+sub,t1w_path,motion,stratum
+sub-01_run-01,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/jdac_ready/sub-01/anat/sub-01_run-01_brain_norm01.nii.gz,0.240,M1_test
+sub-01_run-02,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/jdac_ready/sub-01/anat/sub-01_run-02_brain_norm01.nii.gz,0.985,M1_test
+sub-01_run-03,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/jdac_ready/sub-01/anat/sub-01_run-03_brain_norm01.nii.gz,1.783,M1_test
