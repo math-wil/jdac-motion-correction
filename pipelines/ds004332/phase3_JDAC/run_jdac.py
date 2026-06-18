@@ -183,13 +183,28 @@ def process_subject(sub, t1w_path, out_dir, Denoiser, AntiArt):
 
     t0 = time.time()
 
-    # Chargement et preprocessing
+    # Chargement
     img        = nib.load(str(t1w_path))
     image_data = img.get_fdata()
-    img_tensor = torch.tensor(image_data).unsqueeze(0)   # (1, H, W, D)
-    img_tensor = apply_trans(img_tensor)
-    img_tensor = img_tensor.unsqueeze(0).float()          # (1, 1, H, W, D)
+    orig_shape = image_data.shape
 
+    # Preprocessing interne, applique MANUELLEMENT pour pouvoir INVERSER la geometrie
+    # (reproduit apply_trans : CropForeground select>0.01 margin 0, ScaleIntensity 0-98,
+    #  DivisiblePad k=16 symetrique).
+    fg = image_data > 0.01
+    if not fg.any():
+        print(f"  [{sub}] image vide")
+        return {"sub": sub, "status": "empty", "duration_s": 0}
+    coords = np.array(np.nonzero(fg))
+    lo, hi = coords.min(1), coords.max(1) + 1
+    cropped = image_data[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]
+    cropped = mt.ScaleIntensityRangePercentiles(0, 98, 0.0, 1.0, True)(
+        torch.tensor(cropped).unsqueeze(0))[0].numpy()
+    pads = [(((16 - s % 16) % 16) // 2, (16 - s % 16) % 16 - ((16 - s % 16) % 16) // 2)
+            for s in cropped.shape]
+    padded = np.pad(cropped, pads, mode="constant")
+
+    img_tensor = torch.tensor(padded).unsqueeze(0).unsqueeze(0).float()   # (1,1,H,W,D)
     mask = img_tensor > 0
 
     # Inférence JDAC
@@ -199,15 +214,18 @@ def process_subject(sub, t1w_path, out_dir, Denoiser, AntiArt):
             Denoiser, AntiArt, img_tensor,
             max_iter=4, earlystop=True
         )
+    denoised = (denoised * mask)[0][0].numpy()                            # forme padded
 
-    denoised_img = denoised * mask
+    # Inversion geometrie : un-pad puis replacer dans la grille d'origine.
+    # -> sortie = MEME shape + MEME affine que l'entree (utilisable direct par recon-all,
+    #    se superpose au cerveau preproc). Corrige le bug du crop+pad sauvegarde avec
+    #    l'affine d'origine.
+    sl = tuple(slice(b, b + s) for (b, _), s in zip(pads, cropped.shape))
+    out_full = np.zeros(orig_shape, dtype=np.float32)
+    out_full[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]] = denoised[sl]
 
     # Sauvegarde
-    out_nii = nib.Nifti1Image(
-        denoised_img[0][0].numpy(),
-        img.affine,
-        img.header
-    )
+    out_nii = nib.Nifti1Image(out_full, img.affine, img.header)
     nib.save(out_nii, str(out_path))
 
     duration = time.time() - t0
