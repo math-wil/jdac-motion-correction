@@ -12,10 +12,22 @@ Usage (env cortical-motion) :
 """
 from pathlib import Path
 
+import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+
+
+def autocrop(img, thr=0.06, margin=4):
+    """Rogne le fond noir autour du cerveau (boite englobante du contenu)."""
+    g = img[..., :3].max(axis=2) if img.ndim == 3 else img
+    ys, xs = np.where(g > thr)
+    if ys.size == 0:
+        return img
+    y0, y1 = max(ys.min() - margin, 0), min(ys.max() + margin + 1, img.shape[0])
+    x0, x1 = max(xs.min() - margin, 0), min(xs.max() + margin + 1, img.shape[1])
+    return img[y0:y1, x0:x1]
 
 HOME = Path.home()
 SHOTS = HOME / "Pictures/jdac_images"
@@ -37,7 +49,7 @@ def main():
             ax = axes[row, col]
             path = SHOTS / f"{prefix}{suffix}.png"
             if path.is_file():
-                ax.imshow(mpimg.imread(str(path)))
+                ax.imshow(autocrop(mpimg.imread(str(path))))
             else:
                 ax.text(0.5, 0.5, f"MANQUE\n{path.name}", color="red",
                         ha="center", va="center")
