@@ -18,6 +18,11 @@ les originaux decales sont conserves pour comparaison/QC).
 Usage :
     python fix_jdac_geometry.py            # ecrit les 66 corriges dans jdac_fixed/
     python fix_jdac_geometry.py --check    # verifie seulement (Dice), n'ecrit rien
+    # bras rigide :
+    python fix_jdac_geometry.py \
+        --pre  ~/Documents/derivatives/ds004332/preproc_rigid \
+        --jd   ~/Documents/derivatives/ds004332/jdac_rigid \
+        --out  ~/Documents/derivatives/ds004332/jdac_rigid_fixed
 """
 import argparse
 from pathlib import Path
@@ -74,9 +79,16 @@ def fix_one(jd_path, check=False):
 
 
 def main():
+    global PRE, JD, OUT_DIR
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--pre", help="dossier cerveaux preproc (entree JDAC)")
+    ap.add_argument("--jd", help="dossier sorties JDAC a corriger")
+    ap.add_argument("--out", help="dossier de sortie corrige")
     args = ap.parse_args()
+    if args.pre: PRE = Path(args.pre).expanduser()
+    if args.jd:  JD = Path(args.jd).expanduser()
+    if args.out: OUT_DIR = Path(args.out).expanduser()
     paths = sorted(JD.glob("*/*_T1w_jdac.nii.gz"))
     print(f"{len(paths)} fichiers JDAC -> {OUT_DIR}")
     for p in paths:
