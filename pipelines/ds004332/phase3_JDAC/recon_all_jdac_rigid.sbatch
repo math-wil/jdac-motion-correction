@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=recon_jdac_rigid
 #SBATCH --account=ctb-sbouix
-#SBATCH --time=10:00:00
+#SBATCH --time=20:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
