@@ -1,16 +1,17 @@
 #!/bin/bash
-# QC visuel du preprocessing RIGIDE (abp_n4 + recalage rigide MNI + mri_synthstrip)
-# sur le meme echantillon de 8 que la note de reunion du 19 : sub-01 (3 runs),
-# les 4 plus forts mouvements, et 1 controle median.
+# QC visuel du preprocessing RIGIDE (N4 + recalage rigide MNI + mri_synthstrip),
+# sur les 8 sujets de la note du 19 : sub-01 (3 runs), 4 plus forts mouvements, 1 median.
 #
 # 3 calques par image :
-#   - brut (_T1w.nii)        : image d'origine (espace natif)
-#   - _n4.nii.gz (rigide)    : apres N4 + recalage rigide (espace MNI 1mm)
-#   - _mask.nii.gz (rigide)  : masque skull-strip, en ROUGE
+#   - brut (_T1w.nii)        : image d'origine, espace NATIF (reference seulement,
+#                              ne se superpose PAS au rigide -> normal)
+#   - _rigid.nii.gz          : image apres N4 + recalage rigide (espace MNI)
+#   - _mask.nii.gz           : masque skull-strip, en ROUGE
 #
-# Le _n4 rigide et son _mask sont dans le meme espace -> ils se superposent
-# (c'est le QC du skull-strip : le cortex est-il rogne ? crane garde ?).
-# Le brut est en espace natif (reference), il ne se superpose pas au rigide.
+# IMPORTANT : _rigid et _mask sont dans le MEME espace -> le masque se superpose
+# correctement a l'image rigide. C'est la-dessus qu'on juge le skull strip :
+# affiche _rigid puis _mask (rouge) par-dessus. Le cortex est-il bien pris ?
+# Reste-t-il du crane ou de la dure-mere ?
 #
 # Usage : bash view_preproc_rigid_sample.sh
 
@@ -33,10 +34,10 @@ for entry in "${SAMPLE[@]}"; do
   id="${entry%%:*}"
   s="${id%_run-*}"; r="${id#*_}"
   raw="$RAW/$s/anat/${s}_acq-mpragepmcoff_rec-wore_${r}_T1w.nii"
-  n4="$PRE/$id/${id}_n4.nii.gz"
+  rigid="$PRE/$id/${id}_rigid.nii.gz"
   mask="$PRE/$id/${id}_mask.nii.gz"
   ARGS+=( "$raw" )
-  ARGS+=( "$n4" )
+  ARGS+=( "$rigid" )
   ARGS+=( "$mask" -cm red -a 30 )
 done
 

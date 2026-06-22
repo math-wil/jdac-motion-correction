@@ -35,6 +35,9 @@ import ants
 
 FS = "/project/hippocampus/common/softwares/freesurfer"
 MNI = str(Path.home() / ".antspy/mni.nii.gz")
+MNI_PAD = 48  # marge (voxels) ajoutee autour du MNI : le FOV MNI standard est trop
+              # court en bas et coupait le cervelet. On depose le rigide sur une
+              # grille MNI elargie pour garder tout le cerveau.
 RAW_ROOT = Path("/home/av62870@ens.ad.etsmtl.ca/Documents/raw_datasets/ds004332")
 OUT_DIR = "/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid"
 
@@ -56,9 +59,15 @@ def preproc_une_image(entree, sortie_dir, sid):
     n4 = ants.abp_n4(img)
     ants.image_write(n4, str(n4_path))
 
-    # 2. recalage RIGIDE vers MNI (calcule + applique -> warpedmovout)
-    reg = ants.registration(fixed=ants.image_read(MNI), moving=n4, type_of_transform="Rigid")
-    ants.image_write(reg["warpedmovout"], str(rigid_path))
+    # 2. recalage RIGIDE (6 DOF : rotation + translation, AUCUNE mise a l'echelle,
+    #    contrairement a l'affine de Clinica). On calcule la transfo avec le MNI
+    #    standard, puis on depose le resultat sur une grille MNI ELARGIE (MNI_PAD
+    #    voxels de marge tout autour) pour ne pas couper le bas du cerveau.
+    mni = ants.image_read(MNI)
+    reg = ants.registration(fixed=mni, moving=n4, type_of_transform="Rigid")
+    mni_big = ants.pad_image(mni, pad_width=[(MNI_PAD, MNI_PAD)] * 3)
+    rigid = ants.apply_transforms(fixed=mni_big, moving=n4, transformlist=reg["fwdtransforms"])
+    ants.image_write(rigid, str(rigid_path))
     for i, t in enumerate(reg["fwdtransforms"]):
         shutil.copy(t, str(out / f"{sid}_orig2mni_rigid_{i}{Path(t).suffix}"))
 
