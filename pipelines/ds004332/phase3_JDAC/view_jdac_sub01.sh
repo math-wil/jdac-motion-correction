@@ -12,8 +12,8 @@
 # Usage : bash view_jdac_sub01.sh
 
 RAW=~/Documents/raw_datasets/ds004332
-PRE=~/Documents/derivatives/ds004332/preproc
-JD=~/Documents/derivatives/ds004332/jdac_fixed   # images JDAC recalibrees (meme grille que preproc)
+PRE=~/Documents/derivatives/ds004332/preproc_natif
+JD=~/Documents/derivatives/ds004332/jdac_natif   # images JDAC recalibrees (meme grille que preproc)
 
 ARGS=()
 for r in run-01 run-03; do

@@ -8,7 +8,7 @@ Grille 2 lignes x 3 colonnes :
 
 - Coupe axiale (axe 2 = I-S en RAS), meme position fractionnaire que fig_preproc_steps.
 - Orientation RAS canonique (nib.as_closest_canonical) avant la coupe (superieur en haut).
-- cerveau preproc (_brain) et post-JDAC (jdac_fixed) partagent la meme grille -> meme coupe.
+- cerveau preproc (_brain) et post-JDAC (jdac_natif) partagent la meme grille -> meme coupe.
 
 Sortie : results/ds004332/phase3_JDAC/brut_preproc_jdac_sub01.png
 
@@ -26,8 +26,8 @@ import matplotlib.pyplot as plt
 
 HOME = Path.home()
 RAW = HOME / "Documents/raw_datasets/ds004332"
-PRE = HOME / "Documents/derivatives/ds004332/preproc"
-JD = HOME / "Documents/derivatives/ds004332/jdac_fixed"
+PRE = HOME / "Documents/derivatives/ds004332/preproc_natif"
+JD = HOME / "Documents/derivatives/ds004332/jdac_natif"
 OUT = HOME / "Documents/jdac-motion-correction/results/ds004332/phase3_JDAC/brut_preproc_jdac_sub01.png"
 
 RUNS = [("run-01", 0.20), ("run-03", 3.16)]   # (run, score Agitation)

@@ -12,11 +12,11 @@ Ce script replace chaque sortie JDAC dans la grille EXACTE de l'entree preproc
 (foreground > 0.01) et le DivisiblePad(k=16) est symetrique (before = total//2),
 ce qui a ete verifie voxel a voxel sur sub-01.
 
-Sortie : derivatives/ds004332/jdac_fixed/<id>/<id>_T1w_jdac.nii.gz (NOUVEAU dossier,
+Sortie : derivatives/ds004332/jdac_natif/<id>/<id>_T1w_jdac.nii.gz (NOUVEAU dossier,
 les originaux decales sont conserves pour comparaison/QC).
 
 Usage :
-    python fix_jdac_geometry.py            # ecrit les 66 corriges dans jdac_fixed/
+    python fix_jdac_geometry.py            # ecrit les 66 corriges dans jdac_natif/
     python fix_jdac_geometry.py --check    # verifie seulement (Dice), n'ecrit rien
     # bras rigide :
     python fix_jdac_geometry.py \
@@ -30,9 +30,9 @@ import numpy as np
 import nibabel as nib
 
 HOME = Path.home()
-PRE = HOME / "Documents/derivatives/ds004332/preproc"
-JD = HOME / "Documents/derivatives/ds004332/jdac"
-OUT_DIR = HOME / "Documents/derivatives/ds004332/jdac_fixed"
+PRE = HOME / "Documents/derivatives/ds004332/preproc_natif"
+JD = HOME / "Documents/derivatives/ds004332/jdac_natif"
+OUT_DIR = HOME / "Documents/derivatives/ds004332/jdac_natif"
 
 
 def fix_one(jd_path, check=False):

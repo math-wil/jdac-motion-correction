@@ -24,7 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HOME = Path.home()
-PRE_DIR = HOME / "Documents/derivatives/ds004332/preproc"
+PRE_DIR = HOME / "Documents/derivatives/ds004332/preproc_natif"
 AGIT_CSV = (HOME / "Documents/jdac-motion-correction/results/ds004332/"
             "agitation/ds004332_agitation_clinica.csv")
 OUT_PNG = (HOME / "Documents/jdac-motion-correction/results/ds004332/"

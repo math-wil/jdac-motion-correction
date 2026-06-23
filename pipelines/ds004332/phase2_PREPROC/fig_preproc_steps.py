@@ -29,7 +29,7 @@ from matplotlib.colors import ListedColormap
 
 HOME = Path.home()
 RAW = HOME / "Documents/raw_datasets/ds004332"
-PRE = HOME / "Documents/derivatives/ds004332/preproc"
+PRE = HOME / "Documents/derivatives/ds004332/preproc_natif"
 OUT = HOME / "Documents/jdac-motion-correction/results/ds004332/phase2_PREPROC/preproc_steps_sub01.png"
 
 RUNS = [("run-01", 0.20), ("run-03", 3.16)]   # (run, score Agitation)

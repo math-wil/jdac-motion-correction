@@ -15,7 +15,7 @@
 # Usage : bash view_preproc_sample.sh
 
 RAW=~/Documents/raw_datasets/ds004332
-PRE=~/Documents/derivatives/ds004332/preproc
+PRE=~/Documents/derivatives/ds004332/preproc_natif
 
 # id:motion (motion = score d'agitation, pour memoire)
 SAMPLE=(
