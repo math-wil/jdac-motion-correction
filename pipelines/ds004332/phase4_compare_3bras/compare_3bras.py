@@ -32,7 +32,8 @@ ENTREES
 ================================================================================
 - brute   : results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv (long ; ThickAvg)
             sub-01_run-03 = echec silencieux (ThickAvg=0) -> retire.
-- preproc/jdac : derivatives/ds004332/thickness_{arm}_{lh,rh}.csv (aparcstats2table large)
+- preproc/jdac : derivatives/ds004332/thickness_{arm}[_rigid]_{lh,rh}.csv (aparcstats2table large)
+            natif : thickness_{arm}_{lh,rh}.csv ; rigide : thickness_{arm}_rigid_{lh,rh}.csv (--pipeline rigide)
 - agitation : results/ds004332/agitation/ds004332_agitation_clinica.csv
 - demographics : raw_datasets/ds004332/participants.tsv
 
@@ -43,9 +44,10 @@ SORTIES (results/ds004332/phase4_compare_3bras/)
 - e1_par_condition.csv, e2_pentes_sujet.csv, e3_interaction_regions.csv
 - resume imprime.
 
-Usage : conda run -n cortical-motion python3 compare_3bras.py
+Usage : conda run -n cortical-motion python3 compare_3bras.py [--pipeline natif|rigide]
 """
 
+import argparse
 import warnings
 from pathlib import Path
 
@@ -63,9 +65,17 @@ DERIV = HOME / "Documents/derivatives/ds004332"
 BRUTE_CSV = REPO / "results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv"
 AGIT_CSV = REPO / "results/ds004332/agitation/ds004332_agitation_clinica.csv"
 PARTICIPANTS = HOME / "Documents/raw_datasets/ds004332/participants.tsv"
-OUTDIR = REPO / "results/ds004332/phase4_compare_3bras"
+BASE_OUTDIR = REPO / "results/ds004332/phase4_compare_3bras"
 
 COND = {"run-01": "still", "run-02": "nodding", "run-03": "shaking"}
+
+# Selon le pipeline (natif / rigide), fixe le suffixe des CSV d'epaisseur preproc/jdac
+# et le dossier de sortie. Defini dans main() a partir de --pipeline.
+#   natif  : thickness_{arm}_{hemi}.csv        -> phase4_compare_3bras/
+#   rigide : thickness_{arm}_rigid_{hemi}.csv  -> phase4_compare_3bras/rigide/
+# Le bras brute est partage (image brute -> FreeSurfer, pas de version rigide).
+CSV_SUFFIX = ""        # "" pour natif, "_rigid" pour rigide
+OUTDIR = BASE_OUTDIR   # reassigne dans main()
 
 
 # ------------------------------------------------------------------------------
@@ -84,7 +94,7 @@ def load_brute():
 def load_wide(arm):
     frames = []
     for hemi in ["lh", "rh"]:
-        w = pd.read_csv(DERIV / f"thickness_{arm}_{hemi}.csv", sep="\t")
+        w = pd.read_csv(DERIV / f"thickness_{arm}{CSV_SUFFIX}_{hemi}.csv", sep="\t")
         w = w.rename(columns={w.columns[0]: "id"})
         cols = [c for c in w.columns if c.endswith("_thickness") and "MeanThickness" not in c]
         long = w.melt(id_vars="id", value_vars=cols, var_name="rr", value_name="thickness")
@@ -266,6 +276,18 @@ def figures(g, pentes):
 
 
 def main():
+    global CSV_SUFFIX, OUTDIR
+    ap = argparse.ArgumentParser(description="Comparaison 3 bras brute/preproc/jdac (ds004332).")
+    ap.add_argument("--pipeline", choices=["natif", "rigide"], default="natif",
+                    help="natif (defaut) : thickness_{arm}_{hemi}.csv -> phase4_compare_3bras/ ; "
+                         "rigide : thickness_{arm}_rigid_{hemi}.csv -> phase4_compare_3bras/rigide/")
+    args = ap.parse_args()
+
+    CSV_SUFFIX = "" if args.pipeline == "natif" else "_rigid"
+    OUTDIR = BASE_OUTDIR if args.pipeline == "natif" else BASE_OUTDIR / "rigide"
+    print(f"Pipeline : {args.pipeline} | CSV preproc/jdac : thickness_{{arm}}{CSV_SUFFIX}_{{hemi}}.csv")
+    print(f"Sorties  : {OUTDIR}")
+
     OUTDIR.mkdir(parents=True, exist_ok=True)
     df = load_data()
     g = global_par_run(df)
