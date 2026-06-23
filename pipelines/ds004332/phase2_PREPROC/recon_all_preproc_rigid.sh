@@ -45,7 +45,7 @@ rm -f "$SUBJ_DIR/scripts/IsRunning."* 2>/dev/null || true
 
 # Passe 1 : produire T1.mgz (arret attendu a seg2cc en FS8 -> "|| true")
 if [ ! -f "$M/T1.mgz" ]; then
-    recon-all -s "$SUBJECT_ID" -i "$INPUT" -autorecon1 -noskullstrip -no-isrunning \
+    recon-all -s "$SUBJECT_ID" -i "$INPUT" -autorecon1 -cw256 -noskullstrip -no-isrunning \
         -parallel -openmp "$OMP_THREADS" -sd "$SUBJECTS_DIR" || true
 fi
 [ -f "$M/T1.mgz" ] || { echo "ERREUR : T1.mgz absent apres passe 1."; exit 1; }
@@ -59,6 +59,6 @@ rm -f "$SUBJ_DIR/scripts/IsRunning."* 2>/dev/null || true
 
 # Passe 2 : reprise complete
 set -e
-recon-all -s "$SUBJECT_ID" -autorecon1 -autorecon2 -autorecon3 -noskullstrip -no-isrunning \
+recon-all -s "$SUBJECT_ID" -autorecon1 -autorecon2 -autorecon3 -cw256 -noskullstrip -no-isrunning \
     -parallel -openmp "$OMP_THREADS" -sd "$SUBJECTS_DIR"
 echo "Termine : $SUBJECT_ID"
