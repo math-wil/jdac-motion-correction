@@ -1,40 +1,23 @@
 # Phase 3 — JDAC + FreeSurfer
 
-## Pipeline retenu (Option 2, rigide)
+Bras JDAC : le cerveau prétraité (Phase 2) passe par JDAC, puis recon-all. Sert à comparer au brut (Phase 1) et au prétraité (Phase 2) pour voir si JDAC corrige le biais de mouvement.
 
-```
-T1 brut → FreeSurfer                                       (Phase 1, mesure brut)
-T1 brut → N4 + recalage RIGIDE + crop → SynthStrip → FreeSurfer   (Phase 2, mesure prétraité)
-        → SynthStrip → JDAC → dénormaliser → FreeSurfer    (Phase 3, mesure corrigée JDAC)
-```
-Le recalage **rigide** (6 DOF) préserve l'échelle → épaisseurs comparables entre phases (l'affine 12 DOF de Clinica les faussait, +0.14 mm). Le rigide ne sert PAS à JDAC, il sert à la comparabilité FreeSurfer.
+## Scripts
+- `run_jdac.py` : applique JDAC (reproduit `JDAC_Application.ipynb` des auteurs), env `cortical-motion`, lancé depuis `~/Documents/jdac`.
+- `all66_subjects.csv` / `all66_subjects_rigid.csv` : listes d'entrées (natif / rigide).
+- `recon_all_jdac.sbatch` / `recon_all_jdac_rigid.sbatch` : SLURM, recon-all 2 passes `-noskullstrip` sur les sorties JDAC.
+- `fix_jdac_geometry.py` : recale la sortie JDAC sur la grille du cerveau d'entrée (pour QC superposé ; sans effet sur recon-all).
+- `glm_pipeline_AvsB.py` : GLM preproc vs jdac (offset + interaction).
+- `fig_jdac_steps.py`, `assemble_jdac_fig.py`, `view_jdac_sample.sh`, `view_jdac_sub01.sh` : figures et QC.
 
-## Entrée / sortie JDAC (vérifié dans les notebooks officiels des auteurs)
+## Entrée / sortie JDAC (vérifié dans le code des auteurs)
+JDAC applique lui-même `CropForeground` + `ScaleIntensityRangePercentiles(0, 98 → [0,1])` + `DivisiblePad(k=16)`.
+- **Entrée** = cerveau skull-strippé, intensité quelconque. Pas de MNI, pas de 1 mm, pas de recalage requis.
+- **Sortie** = [0,1] (affine d'origine ; dimensions modifiées par crop + pad).
+- **Pas de dénormalisation avant FreeSurfer** : recon-all conforme et rééchelonne lui-même l'intensité (vérifié). La sortie [0,1] est passée directement à recon-all.
+- Détail : `research-notes/02_Experiments/jdac/jdac-entrees-sorties.md`.
 
-Source : `jdac/JDAC_Application.ipynb` (cellule 25) + notebooks d'entraînement. JDAC applique lui-même :
-`CropForeground` + `ScaleIntensityRangePercentiles(0, 98 → [0,1])` + `DivisiblePad(k=16)`.
-- **Entrée = cerveau skull-strippé**, intensité quelconque. **Pas** de MNI, **pas** de 1 mm, **pas** de recalage requis (`Spacingd` importé mais jamais utilisé). Inutile de normaliser/padder à la main.
-- **Sortie = [0,1]** (sauvée avec l'affine d'origine ; dimensions modifiées par crop+pad).
-- Détail : note `research-notes/02_Experiments/jdac/jdac-entrees-sorties.md`.
-
-## Test rapide JDAC sur sub-01 (skull-strips existants)
-
-But : valider la chaîne JDAC → dénorm → FreeSurfer de bout en bout sur 1 sujet, sans attendre le pipeline rigide final. (Utilise les skull-strips actuels, issus du preprocessing affine — donc pas l'espace final, juste pour tester la machinerie.)
-
-1. **Entrée** : `*_clinica_synthstrip_brain.nii.gz` de sub-01 (run-01/02/03).
-   - local : `derivatives/ds004332/clinica_preproc/...`
-   - hippocampus : `/project/hippocampus/common/mathilde/ds004332/phase2_preproc/sub-01_run-0X/`
-2. **JDAC** : `run_jdac.py` (env `cortical-motion`, lancé depuis `~/Documents/jdac`), CSV `m1_sub01_subjects.csv`. **FAIT (15/06)** : 3/3 runs, sortie [0,1], dimensions ÷16, ~8 s/run sur CPU. Sortie dans `derivatives/ds004332/jdac_m1_test/`.
-3. **Dénormalisation** (à faire) : la sortie est en [0,1] (percentiles 0–98). Inversion ≈ `img × (p98 − p0) + p0`, avec p0/p98 du cerveau d'entrée. **À VÉRIFIER** : la formule exacte + la **géométrie** de la sortie (CropForeground + DivisiblePad changent les dimensions ; l'affine sauvée est celle d'origine).
-4. **FreeSurfer** : recon-all 2 passes `-noskullstrip` sur le cerveau dénormalisé. Réutiliser `../phase2_PREPROC/recon_all_preproc.sh` (adapter l'entrée).
-5. **Comparer** l'épaisseur JDAC vs PREPROC vs RAW, via `../phase2_PREPROC/compare_raw_vs_preproc.py` (à étendre à une 3e colonne JDAC).
-
-## À construire (pipeline final, Option 2)
-
-- Script preprocessing **rigide** : N4 + recalage rigide (ANTsPy) + crop + SynthStrip, en remplacement du Clinica affine. (Décider : recalage rigide vers quoi — gabarit ou image de référence.)
-- Rejouer Phase 2 et Phase 3 sur les 22 sujets avec ce preprocessing, puis GLM Pipeline A vs B.
-
-## Points vérifiés vs à confirmer
-
-- ✅ Vérifié (code des auteurs) : entrée skull-strippée, normalisation percentiles interne, pad ÷16, pas de recalage, sortie [0,1].
-- ⚠️ À confirmer lundi : commande/chemins JDAC exacts, formule de dénormalisation + géométrie, choix du recalage rigide.
+## État
+- JDAC appliqué sur les 66 cerveaux, en natif et en rigide.
+- recon-all JDAC rigide : **64/66** (manquent `sub-10_run-03` et `sub-11_run-03` : topologie de surface sur mouvement sévère).
+- Comparaison des 3 bras : `../phase4_compare_3bras/`.

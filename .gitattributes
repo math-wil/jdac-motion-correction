@@ -1,0 +1,2 @@
+# Ne pas compter les notebooks dans les statistiques de langage GitHub (linguist)
+*.ipynb linguist-documentation
