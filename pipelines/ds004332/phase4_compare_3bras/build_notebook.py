@@ -125,9 +125,56 @@ Moyenne non pondérée des 68 régions, par acquisition × bras. Cette mesure gl
 print(g.shape[0], "lignes (une par acquisition x bras). Exemple, sub-01 :")
 g[g["subject"] == "sub-01"].sort_values(["arm", "run"])''')
 
-    md("""## 3. Épaisseur en fonction de l'Agitation, par bras (régression globale)
+    md("""## 3. Vue descriptive par condition expérimentale (E1)
 
-Régression linéaire de l'épaisseur moyenne sur le score Agitation, séparément par bras. La pente quantifie l'effet du mouvement. Une pente moins négative pour jdac que pour le brut indiquerait une atténuation de cet effet ; un simple décalage vertical, sans changement de pente, indiquerait un lissage. Régression globale toutes acquisitions confondues, non ajustée : vue indicative, complétée par les sections 6 et 7.""")
+Première lecture descriptive, sans test statistique : on compare les conditions imposées au sujet (`still`, `nodding`, `shaking`) dans chaque bras. Cette section répond à une question simple : les acquisitions supposées plus bougées ont-elles une épaisseur moyenne plus faible, et cette différence est-elle réduite après preprocessing ou JDAC ?
+
+Limite : la condition expérimentale n'est pas une mesure directe du mouvement. Elle sert d'entrée intuitive avant l'analyse par score Agitation.""")
+
+    code('''## Tableau 1 : epaisseur moyenne (mm) par condition x bras
+piv = g.pivot_table(index="condition", columns="arm", values="thickness", aggfunc="mean")
+piv = piv.reindex(["still", "nodding", "shaking"])[["brute", "preproc", "jdac"]]
+show(piv, "Tableau 1. Epaisseur moyenne (mm) par condition x bras", "{:.3f}")''')
+
+    if suffix == "_rigid":
+        md("""- En brut, l’épaisseur chute beaucoup quand le mouvement augmente : 2.595 -> 2.332.
+- En preproc, la chute est moins forte : 2.518 -> 2.347.
+- En JDAC, la chute est encore plus faible : 2.435 -> 2.341.
+
+Donc à première vue, JDAC réduit l’effet apparent du mouvement sur l’épaisseur.""")
+
+    code('''## Tableau 2 : effet du mouvement = variation relative au still du meme bras (%)
+motion = 100 * (piv - piv.loc["still"]) / piv.loc["still"]
+show(motion, "Tableau 2. Effet du mouvement : variation relative au still du meme bras (%)", "{:+.2f}")''')
+
+    if suffix == "_rigid":
+        md("""- En brut, les scans shaking ont environ -10% d’épaisseur par rapport aux still.
+- Après preprocessing rigide, la perte shaking tombe à environ -6.8%.
+- Après JDAC, elle tombe à environ -3.8%.
+
+Donc JDAC atténue clairement la dépendance entre condition de mouvement et épaisseur.""")
+
+    code('''## Tableau 3 : ecart de preproc / jdac au brut, par condition (%)
+offset = pd.DataFrame({
+    "preproc_vs_brut_%": 100 * (piv["preproc"] - piv["brute"]) / piv["brute"],
+    "jdac_vs_brut_%":    100 * (piv["jdac"]    - piv["brute"]) / piv["brute"],
+})
+show(offset, "Tableau 3. Ecart au brut par condition (%)", "{:+.2f}")''')
+
+    if suffix == "_rigid":
+        md("""- sur les scans still, JDAC diminue fortement l’épaisseur par rapport au brut ;
+- sur les scans nodding, JDAC diminue aussi l’épaisseur ;
+- sur les scans shaking, JDAC est presque égal au brut, voire très légèrement au-dessus.
+
+Donc la réduction de pente vient en grande partie du fait que JDAC abaisse les acquisitions peu ou modérément agitées, pas seulement du fait qu’il restaure les acquisitions très agitées.""")
+
+    md(f"""Synthèse E1 : dans les images brutes, l'épaisseur moyenne diminue nettement entre still, nodding et shaking. Cette diminution est plus faible après preprocessing {pipeline_label} et encore plus faible après JDAC, ce qui suggère une atténuation de l'association apparente entre condition de mouvement et épaisseur corticale.
+
+Cependant, la comparaison directe avec le brut montre que JDAC réduit aussi l'épaisseur des acquisitions still et nodding. L'aplatissement de la différence entre conditions peut donc venir en partie d'un effet global de JDAC sur les images, et pas seulement d'une restauration des acquisitions shaking.""")
+
+    md("""## 4. Vue continue non ajustée : épaisseur en fonction de l'Agitation
+
+Régression linéaire de l'épaisseur moyenne sur le score Agitation, séparément par bras. La pente quantifie l'association brute entre mouvement mesuré et épaisseur. Une pente moins négative pour jdac que pour le brut suggère une atténuation de l'effet du mouvement ; un simple décalage vertical, sans changement de pente, suggère plutôt un effet de lissage ou d'offset. Cette vue est non ajustée et sert d'intuition avant les analyses appariées et le modèle mixte continu principal.""")
 
     code('''fig, ax = plt.subplots(figsize=(7.5, 5.5))
 colors = {"brute": "tab:gray", "preproc": "tab:blue", "jdac": "tab:red"}
@@ -145,46 +192,38 @@ ax.set_title("Epaisseur en fonction de l'Agitation, par bras")
 ax.legend()
 plt.show()''')
 
-    md("""## 4. Statistiques descriptives par condition (E1)
+    md(f"""L'épaisseur corticale moyenne diminue significativement avec l'agitation dans les images brutes.
 
-Trois lectures descriptives, sans test : épaisseur moyenne par condition × bras ; effet du mouvement (variation relative au still du même bras) ; écart de preproc et jdac au brut, par condition. Un écart jdac approximativement constant entre conditions correspondrait à un lissage uniforme.""")
+Cette pente est atténuée après preprocessing {pipeline_label}, puis encore davantage après JDAC. Cette lecture soutient l'idée que JDAC réduit l'association statistique entre mouvement et épaisseur, mais elle ne permet pas encore de distinguer une correction ciblée des artefacts d'un effet global de lissage ou de modification des intensités.""")
 
-    code('''# Tableau 1 : epaisseur moyenne (mm) par condition x bras
-piv = g.pivot_table(index="condition", columns="arm", values="thickness", aggfunc="mean")
-piv = piv.reindex(["still", "nodding", "shaking"])[["brute", "preproc", "jdac"]]
-show(piv, "Tableau 1. Epaisseur moyenne (mm) par condition x bras", "{:.3f}")
+    md("""## 5. Stratification descriptive par niveau de mouvement mesuré
 
-# Tableau 2 : effet du mouvement = variation relative au still du meme bras (%)
-motion = 100 * (piv - piv.loc["still"]) / piv.loc["still"]
-show(motion, "Tableau 2. Effet du mouvement : variation relative au still du meme bras (%)", "{:+.2f}")
+Les libellés still / nodding / shaking sont des consignes données au sujet, pas une mesure : nodding et shaking peuvent se recouvrir en score Agitation. Les acquisitions sont donc regroupées par niveau de mouvement réel, d'après le score Agitation (en mm) : faible (<= 0.3), léger (0.3 à 1.0), modéré (1.0 à 2.0), sévère (> 2.0). Ce découpage sert à visualiser la relation épaisseur-mouvement sans mélanger toute la plage 0.3-2.6 dans une seule catégorie. Il reste descriptif : les modèles continus des sections 4 et 8 gardent toute l'information du score Agitation. Vue inter-sujets : chaque niveau agrège des sujets différents.""")
 
-# Tableau 3 : ecart de preproc / jdac au brut, par condition (%)
-offset = pd.DataFrame({
-    "preproc_vs_brut_%": 100 * (piv["preproc"] - piv["brute"]) / piv["brute"],
-    "jdac_vs_brut_%":    100 * (piv["jdac"]    - piv["brute"]) / piv["brute"],
-})
-show(offset, "Tableau 3. Ecart au brut par condition (%)", "{:+.2f}")''')
-
-    md("""## 5. Stratification par niveau de mouvement mesuré
-
-Les libellés still / nodding / shaking sont des consignes données au sujet, pas une mesure : nodding et shaking se recouvrent fortement en score Agitation. Les acquisitions sont donc regroupées par niveau de mouvement réel, d'après le score Agitation (en mm) : faible (≤ 0.3), modéré (0.3 à 2.6), sévère (≥ 2.6). Les seuils suivent la distribution : 0.3 marque la fin de l'amas dense des acquisitions immobiles ; 2.6 isole l'amas des acquisitions très bougées, séparé du reste par le plus grand écart de la distribution. Le groupe modéré est large, faute de séparation nette au centre de la distribution. Vue inter-sujets : chaque niveau agrège des sujets différents.""")
-
-    code('''# Niveaux de mouvement reel, seuils ancres sur la distribution (0.3 et 2.6)
+    code('''# Niveaux de mouvement reel, decoupage descriptif plus fin
 scans = g[["subject", "run", "agitation"]].drop_duplicates().copy()
-scans["niveau"] = pd.cut(scans["agitation"], [0, 0.3, 2.6, 3.4],
-                         labels=["faible", "modere", "severe"])
+scans["niveau"] = pd.cut(scans["agitation"], [0, 0.3, 1.0, 2.0, np.inf],
+                         labels=["faible", "leger", "modere", "severe"],
+                         include_lowest=True)
 gb = g.merge(scans[["subject", "run", "niveau"]], on=["subject", "run"])
 
 bornes = scans.groupby("niveau", observed=True)["agitation"].agg(n="count", min="min", max="max")
-show(bornes, "Niveaux de mouvement (score Agitation, seuils 0.3 et 2.6)",
+show(bornes, "Niveaux de mouvement (score Agitation : 0.3, 1.0, 2.0)",
      {"n": "{:.0f}", "min": "{:.2f}", "max": "{:.2f}"})
 
 pivb = (gb.pivot_table(index="niveau", columns="arm", values="thickness", aggfunc="mean", observed=True)
-          .reindex(["faible", "modere", "severe"])[["brute", "preproc", "jdac"]])
+          .reindex(["faible", "leger", "modere", "severe"])[["brute", "preproc", "jdac"]])
 show(pivb, "Epaisseur moyenne (mm) par niveau de mouvement x bras", "{:.3f}")
+''')
 
-# Nuage : epaisseur vs Agitation, points colores par niveau de mouvement, un panneau par bras
-col_niv = {"faible": "tab:green", "modere": "tab:orange", "severe": "tab:red"}
+    md("""  L’épaisseur moyenne diminue avec le niveau de mouvement dans le bras brut. Cette diminution est moins marquée après
+  preprocessing, puis encore plus faible après JDAC.
+
+  Cette lecture reste descriptive : les niveaux simplifient un score continu et servent surtout à visualiser la tendance
+  avant les tests.""")
+
+    code('''# Nuage : epaisseur vs Agitation, points colores par niveau de mouvement, un panneau par bras
+col_niv = {"faible": "tab:green", "leger": "tab:blue", "modere": "tab:orange", "severe": "tab:red"}
 fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), sharey=True)
 for ax, arm in zip(axes, ["brute", "preproc", "jdac"]):
     sub = gb[gb["arm"] == arm]
@@ -196,16 +235,18 @@ axes[0].legend(title="niveau", fontsize=8)
 fig.suptitle("Epaisseur vs Agitation, points colores par niveau de mouvement")
 plt.tight_layout(); plt.show()''')
 
-    md("""## 5 bis. Effet de JDAC selon le niveau de mouvement (test)
+    md("""## 6. Test catégoriel par niveau de mouvement (5bis)
 
-Deux analyses : (1) un modèle mixte `épaisseur ~ bras × niveau + (1 | sujet)` testant l'interaction bras × niveau, c'est-à-dire si l'écart entre bras dépend du niveau de mouvement ; (2) une comparaison par strate, l'écart jdac − brut (et preproc − brut) par niveau, avec test apparié. Le niveau sévère (n=8) est peu puissant, ses p-values sont indicatives.""")
+Deux analyses utilisent les classes définies à la section 5 : (1) un modèle mixte `épaisseur ~ bras × niveau + (1 | sujet)` testant l'interaction bras × niveau, c'est-à-dire si l'écart entre bras dépend du niveau de mouvement ; (2) une comparaison par strate, l'écart jdac - brut et preproc - brut par niveau, avec test apparié. Les niveaux avec peu d'acquisitions sont peu puissants, leurs p-values sont indicatives.
+
+Question posée ici : l'écart entre JDAC et le brut est-il le même en mouvement faible, léger, modéré et sévère ? Ce n'est pas le test continu principal de la pente épaisseur-agitation ; ce rôle revient au modèle mixte continu de la section 8.""")
 
     code('''# (1) Modele mixte avec interaction bras x niveau
 gi = gb.copy()
 gi["arm"] = pd.Categorical(gi["arm"], categories=["brute", "preproc", "jdac"])
 fit_i = smf.mixedlm("thickness ~ C(arm, Treatment('brute')) * C(niveau, Treatment('faible'))",
                     gi, groups=gi["subject"]).fit(reml=True, method="powell", disp=False)
-print("Interaction (jdac x niveau) : l'ecart jdac-brut depend-il de la severite ?")
+print("Interaction (jdac x niveau) : l'ecart jdac-brut depend-il du niveau de mouvement ?")
 for k in fit_i.params.index:
     if ":" in k and "jdac" in k:
         niv = k.split("[T.")[-1].rstrip("]")
@@ -216,7 +257,7 @@ paire = (gb.pivot_table(index=["subject", "run", "niveau"], columns="arm",
                         values="thickness", observed=True)
            .dropna(subset=["brute"]).reset_index())
 rows = []
-for niv in ["faible", "modere", "severe"]:
+for niv in ["faible", "leger", "modere", "severe"]:
     s = paire[paire["niveau"] == niv]
     rec = {"niveau": niv, "n": len(s)}
     for arm in ["preproc", "jdac"]:
@@ -232,9 +273,14 @@ show(strat, "Ecart au brut par niveau (%) et test apparie (Wilcoxon)",
      {"n": "{:.0f}", "preproc-brut %": "{:+.2f}", "p(preproc)": "{:.2g}",
       "jdac-brut %": "{:+.2f}", "p(jdac)": "{:.2g}"})''')
 
-    md("""## 6. Pente intra-sujet de l'épaisseur en fonction de l'Agitation (E2)
+    md("""## 7. Analyse intra-sujet des pentes (E2)
 
-Pour chaque sujet et chaque bras, une régression de l'épaisseur sur l'Agitation à partir de ses trois acquisitions résume sa pente. Chaque pente provient d'un seul sujet, ce qui élimine les différences d'épaisseur de base entre sujets. Comparaison appariée des pentes entre bras (test de Wilcoxon, mêmes sujets).""")
+Pour chaque sujet et chaque bras, une régression de l'épaisseur sur l'Agitation résume la pente intra-sujet à partir des acquisitions disponibles, jusqu'à trois runs par sujet. Cette approche réduit l'influence des différences d'épaisseur de base entre sujets. Les pentes sont ensuite comparées entre bras avec un test apparié de Wilcoxon.
+
+Limite : certains sujets peuvent contribuer une pente estimée sur deux acquisitions seulement si un run manque dans un bras.
+
+  > Pour un même sujet, est-ce que l’épaisseur diminue moins avec le mouvement après JDAC que sur l’image brute ou
+  > prétraitée ?""")
 
     code('''rows = []
 for (subj, arm), sub in g.groupby(["subject", "arm"]):
@@ -273,9 +319,11 @@ elif pv[("brute", "jdac")] < 0.05:
 else:
     print("\\nConclusion : pas d'aplatissement significatif des pentes par sujet pour jdac.")''')
 
-    md("""## 7. Modèle linéaire mixte (E3)
+    md("""## 8. Modèle continu principal (E3)
 
-Modèle : `épaisseur ~ âge + sexe + Agitation × bras + (1 | sujet)`, référence = brute. Le coefficient `agitation` est la pente du brut ; le coefficient de bras est l'offset ; l'interaction `agitation × bras` est la variation de pente, coefficient décisif. L'effet aléatoire `(1 | sujet)` attribue à chaque sujet sa propre épaisseur de base. Le modèle est ensuite réajusté par région, avec correction FDR.""")
+Modèle : `épaisseur ~ âge + sexe + Agitation × bras + (1 | sujet)`, référence = brute. Le coefficient `agitation` est la pente du brut ; le coefficient de bras est l'offset ; l'interaction `agitation × bras` est la variation de pente, coefficient décisif. L'effet aléatoire `(1 | sujet)` attribue à chaque sujet sa propre épaisseur de base.
+
+C'est le test principal : il conserve le score Agitation continu, ajuste âge et sexe, et tient compte des mesures répétées par sujet. Le même modèle est ensuite réajusté par région, avec correction FDR.""")
 
     code('''g2 = g.copy()
 g2["arm"] = pd.Categorical(g2["arm"], categories=["brute", "preproc", "jdac"])
@@ -302,6 +350,10 @@ if p_chgj < 0.05 and abs(sl_b + chg_j) < abs(sl_b):
     print("Conclusion : pente jdac significativement aplatie, effet du mouvement reduit.")
 else:
     print("Conclusion : pente jdac non distincte du brut (offset / lissage).")''')
+
+    md("""### 8b. Analyse régionale
+
+Même modèle que ci-dessus, réajusté région par région. La p-value de l'interaction `Agitation × jdac` est corrigée FDR sur les régions. Cette analyse indique où l'aplatissement de la pente JDAC est spatialement le plus robuste.""")
 
     code('''# Modele mixte par region, avec correction FDR (Benjamini-Hochberg)
 from statsmodels.stats.multitest import multipletests
@@ -330,9 +382,11 @@ sig = res[res["p_fdr"] < 0.05].sort_values("var_pente_jdac", ascending=False).se
 show(sig, f"Regions FDR<0.05 : variation de pente jdac vs brut ({nsig} regions)",
      {"var_pente_jdac": "{:+.4f}", "p": "{:.2g}", "p_fdr": "{:.2g}"})''')
 
-    md("""## 8. Lecture des résultats
+    md("""## 9. Lecture des résultats
 
-La section 3 fournit l'intuition (pente globale par bras). La section 5 examine l'effet par niveau de mouvement réel. La section 6 teste l'effet intra-sujet (apparié). La section 7 fournit le test formel : la variation de pente de jdac est le coefficient décisif, complété par l'analyse régionale corrigée FDR. La cohérence entre ces approches mesure la robustesse de la conclusion.""")
+La section 3 donne l'intuition par condition expérimentale. La section 4 vérifie la relation continue non ajustée entre Agitation et épaisseur. La section 5 rend le score Agitation lisible par classes descriptives, puis la section 6 teste si l'écart entre bras varie selon ces classes. La section 7 apporte une lecture intra-sujet appariée. La section 8 fournit le test formel principal : la variation de pente de jdac dans le modèle mixte continu, complétée par l'analyse régionale corrigée FDR.
+
+La conclusion doit donc s'appuyer d'abord sur la section 8, puis utiliser les sections descriptives pour interpréter le mécanisme : correction ciblée du mouvement ou effet plus global de lissage / offset.""")
 
     nb["cells"] = cells
     return nb
