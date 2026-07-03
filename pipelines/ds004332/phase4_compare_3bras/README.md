@@ -11,22 +11,21 @@ Vocabulaire : `condition` = les cinq traitements ; `consigne` = still / nodding 
 - `jdac_antiartonly` : réseau anti-artefact appliqué une seule fois.
 - `jdac_nodenoise` : boucle de JDAC sans débruiteur, anti-artefact jusqu'à quatre fois.
 
-## Structure de l'analyse (plan Sylvain, réunion 2026-07-02)
-1. **Étape 1 — immobiles** : épaisseur des 5 conditions sur les scans immobiles ; isole le lissage / offset (rien à corriger sur un immobile).
-2. **Étape 2 — pentes** épaisseur ~ Agitation par condition (globale + intra-sujet, Wilcoxon vs brut).
-3. **Étape 3 — M0 vs M1** (méthode de Charles) : `épaisseur ~ âge + sexe` contre `+ Agitation`, par condition ; le score améliore-t-il le modèle (LRT, ΔAIC, coefficient).
-4. **Étape 3b — non-linéarité par strate** : formes linéaire / quadratique (Agitation²) / splines / niveau catégoriel, comparées par ΔAIC.
-
-Analyses descriptives conservées : par consigne, stratification par niveau de mouvement, interaction condition × niveau, Wilcoxon par niveau.
+## Structure de l'analyse (notebook, épaisseurs en mm, chaque sortie expliquée)
+- **A. Immobiles** : épaisseur des conditions sur les scans immobiles (run-01), écart au brut en mm ; isole le lissage / offset (rien à corriger sur un immobile).
+- **B. Immobile vs bougé, par sujet** : écart `épaisseur(run-01) − épaisseur(run-03)` par sujet ; figure par sujet (les 3 runs) + décompte améliorés / sur-corrigés / inchangés par condition.
+- **C. M0 vs M1** : par condition, `épaisseur ~ âge + sexe` (M0) contre `+ Agitation` (M1) ; le mouvement prédit-il encore l'épaisseur (p du LRT, coefficient en mm/point).
+- **D. Évaluation image (protocole JDAC)** : SSIM sur l'image et sur les cartes de gradient du scan bougé contre le scan propre (référence propre = preproc run-01 ; référence intra-condition pour enlever le biais d'intensité). Distingue correction et lissage indépendamment de l'épaisseur.
 
 ## Fichiers
 - `build_notebook.py` : génère le notebook.
 - `explore_epaisseur_rigide.ipynb` : analyse pas à pas, lisible. Lancer dans l'env `cortical-motion` (`jupyter lab`).
-- `compare_conditions.py` : script équivalent (mêmes modèles), écrit les tables dans `results/ds004332/phase4_compare_3bras/`.
+- `compute_image_metrics.py` : calcule les métriques image (SSIM image + gradient vs scan propre), écrit `results/ds004332/phase4_compare_3bras/image_metrics.csv` (chargé par la section D). À exécuter avant le notebook.
+- `compare_conditions.py` : script CLI (à réaligner sur la structure A/B/C/D du notebook).
 
 ## Entrées
 - Épaisseur : brut `results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv` ; preproc/jdac `derivatives/ds004332/thickness_{preproc,jdac}_rigid_{lh,rh}.csv` ; variantes `derivatives/ds004332/thickness_jdac_{antiartonly,nodenoise}_rigid/…_{lh,rh}.csv`.
 - Agitation : `results/ds004332/agitation/ds004332_agitation_clinica.csv`.
 
 ## Résultat
-JDAC complet est la seule condition où le mouvement cesse de prédire l'épaisseur (M0 vs M1 : Agitation n'améliore plus le modèle, pente ~ nulle), mais au prix d'un offset négatif sur les scans immobiles (≈ −6 %) : aplatissement par lissage, pas correction ciblée. Les variantes sans débruiteur **sur-corrigent** : la pente s'inverse (positive), l'offset sur les immobiles est plus fort, et `jdac_nodenoise` (×4) rend les scans très bougés plus épais que les immobiles. Retirer le débruiteur et itérer ne récupère pas le cortex, cela introduit un biais inverse proportionnel au mouvement. Détail : `research-notes` (`STATUS.md`, réunion 2026-07-02).
+Les deux variantes sans débruiteur **sur-corrigent** : l'écart immobile − bougé s'inverse chez presque tous les sujets (nodenoise 19/20), le coefficient d'Agitation devient positif (nodenoise +0.092 mm/point, p=7e-7), et côté image leurs contours ne se rapprochent pas du scan propre malgré leur netteté. **jdac complet** découple le mieux mouvement et épaisseur (M0 vs M1 : coef −0.020, p=0.11 ; contours plus proches du propre en référence intra), mais avec un offset de −0.16 mm sur les immobiles (lissage). Une grande part du rapprochement immobile/bougé vient déjà du **preprocessing seul** (16 sujets/19). Détail : `research-notes` (`STATUS.md`, `06_Daily-logs/2026-07-03`).
