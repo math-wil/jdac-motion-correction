@@ -243,9 +243,29 @@ show(ti, "SSIM gradient vs le scan immobile de la MÊME condition : lecture sans
      "ressemble davantage à son propre immobile (contours du mouvement réduits) = correction réelle. "
      "≤ preproc = pas de gain de contours, la netteté éventuelle ne correspond pas à l'anatomie propre.", "{:.3f}")''')
 
+    md("""## E. Les mesures suivent-elles ? Récupération vers la vraie épaisseur (par région, mm)
+
+Question de fond pour un article : pour un scan bougé, l'épaisseur mesurée **par région** se rapproche-t-elle de la vraie valeur (le scan immobile du même sujet) après correction ? On évite la moyenne globale (qui peut coïncider par hasard) et on mesure la distance région par région, en mm. Trois distances :
+- **mouvement restant** : écart au scan immobile de la **même** condition (immobile et bougé subissent le même offset, donc ce terme est net d'offset) ;
+- **erreur à la vérité** : écart au scan immobile **brut** (la vraie valeur, la moins traitée) ;
+- **offset** : distorsion appliquée par la condition à un scan propre.
+
+Métriques calculées à part (`compute_recovery.py`).""")
+
+    code('''rec = pd.read_csv(REPO / "results/ds004332/phase4_compare_3bras/recovery_metrics.csv")
+RCONDS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
+for run, cons in [("run-03", "shaking (fort mouvement)"), ("run-02", "nodding (mouvement modéré)")]:
+    t = (rec[rec["run"] == run].groupby("condition")[["mae_within", "mae_truth", "offset"]]
+         .mean().reindex(RCONDS))
+    t.columns = ["mouvement restant (mm)", "erreur à la vérité (mm)", "offset sur le propre (mm)"]
+    show(t, f"Scan {cons} : l'épaisseur régionale se rapproche-t-elle de la vraie valeur (immobile brut) ?",
+         "brut (1re ligne) = niveau sans correction. Une correction ferait baisser le mouvement restant ET "
+         "l'erreur à la vérité SOUS le niveau du brut. Si ces distances restent égales ou plus hautes que le brut, "
+         "la correction ne rapproche pas la mesure de la vraie valeur (les mesures ne suivent pas).", "{:.3f}")''')
+
     md("""## Synthèse
 
-Une condition **corrige** le mouvement si : elle laisse l'immobile proche du brut (A, écart proche de 0 mm), elle rapproche immobile et bougé chez une majorité de sujets sans en sur-corriger beaucoup (B), le mouvement ne prédit plus l'épaisseur (C, p grande), et le scan bougé se rapproche du propre sur les contours (D, SSIM gradient au-dessus de preproc). Elle **lisse** si elle abaisse l'immobile (A) et fait baisser la SSIM de gradient (D). Elle **sur-corrige** si le bougé devient plus épais que l'immobile (B) et si le coefficient d'Agitation devient positif (C). Le volet D tranche correction contre lissage indépendamment de l'épaisseur.""")
+Une condition **corrige** le mouvement si : elle laisse l'immobile proche du brut (A), elle rapproche immobile et bougé chez une majorité de sujets (B), le mouvement ne prédit plus l'épaisseur (C, p grande), les contours se rapprochent du propre (D), et surtout **l'épaisseur régionale du scan bougé se rapproche de la vraie valeur, sous le niveau brut (E)**. Elle **lisse** si elle abaisse l'immobile (A) et distord les contours (D). Elle **sur-corrige** si le coefficient d'Agitation devient positif (C) et si l'erreur régionale à la vérité **augmente** malgré une moyenne qui semble récupérée (E). La section E est le juge final pour un article : elle dit si la mesure corticale suit vraiment la correction, région par région.""")
 
     nb["cells"] = cells
     return nb
