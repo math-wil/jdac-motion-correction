@@ -11,4 +11,3 @@ __pycache__/
 *.nii.gz
 *.mgz
 *.mgh
-.claude/
