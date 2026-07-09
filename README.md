@@ -6,6 +6,15 @@ This repository contains the lightweight, versioned part of the project: pipelin
 
 Project context: Neuro-iX Lab, ETS. Author: Mathilde Wilfart.
 
+## JDAC Reference
+
+This project evaluates JDAC as introduced in:
+
+- Lintao Zhang, Mengqi Wu, Lihong Wang, David C. Steffens, Guy G. Potter, and Mingxia Liu. "Iterative Learning for Joint Image Denoising and Motion Artifact Correction of 3D Brain MRI." arXiv:2403.08162, 2024. https://arxiv.org/abs/2403.08162
+- Original JDAC code repository: https://github.com/goodaycoder/JDAC
+
+The JDAC source code, pretrained models, and original application notebook are not vendored in this repository. Local scripts assume they are available under `~/Documents/jdac/`.
+
 ## Research Question
 
 Subject motion during MRI acquisition biases FreeSurfer cortical thickness estimates. This project asks whether JDAC removes that motion-related bias, or whether it mostly smooths images in a way that changes cortical thickness globally.
@@ -35,23 +44,23 @@ Earlier native-space and Clinica-affine experiments are kept for reference, but 
 
 ```text
 .
-├── pipelines/
-│   └── ds004332/
-│       ├── phase1_RAW/              # FreeSurfer on raw images
-│       ├── phase2_PREPROC/          # N4 + rigid registration + SynthStrip
-│       ├── phase3_JDAC/             # JDAC inference, variants, and FreeSurfer
-│       ├── phase4_compare_3bras/    # Cross-condition thickness analyses
-│       ├── agitation/               # Agitation motion score processing
-│       ├── utils/                   # Narval transfer and cluster notes
-│       └── _archive_clinica/        # Archived Clinica-affine experiment
-└── results/
-    └── ds004332/
-        ├── phase1_RAW/              # Raw thickness and GLM outputs
-        ├── phase2_PREPROC/          # Preprocessing QC figures
-        ├── phase3_JDAC/             # JDAC figures and GLM outputs
-        ├── phase4_compare_3bras/    # Condition-comparison CSVs and figures
-        ├── agitation/               # Motion scores
-        └── _archive_clinica/        # Archived Clinica-affine results
+|-- pipelines/
+|   `-- ds004332/
+|       |-- phase1_RAW/              # FreeSurfer on raw images
+|       |-- phase2_PREPROC/          # N4 + rigid registration + SynthStrip
+|       |-- phase3_JDAC/             # JDAC inference, variants, and FreeSurfer
+|       |-- phase4_compare_3bras/    # Cross-condition thickness analyses
+|       |-- agitation/               # Agitation motion score processing
+|       |-- utils/                   # Narval transfer and cluster notes
+|       `-- _archive_clinica/        # Archived Clinica-affine experiment
+`-- results/
+    `-- ds004332/
+        |-- phase1_RAW/              # Raw thickness and GLM outputs
+        |-- phase2_PREPROC/          # Preprocessing QC figures
+        |-- phase3_JDAC/             # JDAC figures and GLM outputs
+        |-- phase4_compare_3bras/    # Condition-comparison CSVs and figures
+        |-- agitation/               # Motion scores
+        `-- _archive_clinica/        # Archived Clinica-affine results
 ```
 
 Each pipeline phase has its own README with more detailed execution notes:
