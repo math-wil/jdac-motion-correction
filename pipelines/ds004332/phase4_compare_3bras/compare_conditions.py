@@ -34,7 +34,7 @@ import statsmodels.formula.api as smf
 warnings.filterwarnings("ignore")
 
 HOME  = Path.home()
-REPO  = HOME / "Documents/jdac-motion-correction"
+REPO  = Path(__file__).resolve().parents[3]
 DERIV = HOME / "Documents/derivatives/ds004332"
 BRUTE_CSV    = REPO / "results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv"
 AGIT_CSV     = REPO / "results/ds004332/agitation/ds004332_agitation_clinica.csv"

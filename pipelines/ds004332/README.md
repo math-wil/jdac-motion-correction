@@ -7,7 +7,7 @@ Code du pipeline d'évaluation de JDAC sur ds004332, organisé par phase. Chaque
 | `phase1_RAW/` | recon-all sur images brutes + GLM épaisseur ~ mouvement (bras RAW). |
 | `phase2_PREPROC/` | prétraitement N4 + recalage rigide + SynthStrip, puis recon-all (bras PREPROC). |
 | `phase3_JDAC/` | JDAC sur cerveaux prétraités, puis recon-all (bras JDAC). |
-| `phase4_compare_3bras/` | comparaison des 3 bras : descriptif, niveaux de mouvement, pentes intra-sujet, modèle mixte. Notebooks `explore_3bras_*`. |
+| `phase4_compare_3bras/` | comparaison rigide actuelle à 5 conditions : brut, preproc, jdac, antiartonly, nodenoise. Le nom du dossier est historique. |
 | `agitation/` | calcul du score de mouvement Agitation (covariable des GLM). |
 | `utils/` | transfert vers Narval, guide d'exécution sur le cluster. |
 

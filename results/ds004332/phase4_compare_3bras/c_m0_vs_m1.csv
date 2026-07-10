@@ -1,0 +1,6 @@
+condition,n_acquisitions,coef_agitation_mm_par_point,p_m1_vs_m0,sens
+brut,65,-0.0662,6.6e-05,amincit
+preproc,64,-0.0308,0.028,amincit
+jdac,64,-0.0203,0.11,amincit
+jdac_antiartonly,66,0.0253,0.081,epaissit
+jdac_nodenoise,65,0.0923,7.1e-07,epaissit

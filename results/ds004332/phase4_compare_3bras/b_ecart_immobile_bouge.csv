@@ -1,0 +1,5 @@
+condition,n_sujets,ameliores,sur_corriges,inchanges_ou_pires,ecart_median_brut_mm,ecart_median_condition_mm
+preproc,19,16,1,2,0.239,0.148
+jdac,19,15,3,1,0.239,0.118
+jdac_antiartonly,21,7,14,0,0.255,-0.033
+jdac_nodenoise,20,1,19,0,0.247,-0.226

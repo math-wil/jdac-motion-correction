@@ -1,0 +1,6 @@
+condition,epaisseur_immobile_mm,ecart_type_mm,n_sujets,ecart_au_brut_mm,ecart_au_brut_pct
+brut,2.595,0.061,22,0.000,0.0
+preproc,2.518,0.068,21,-0.077,-3.0
+jdac,2.435,0.101,22,-0.160,-6.2
+jdac_antiartonly,2.418,0.117,22,-0.177,-6.8
+jdac_nodenoise,2.378,0.099,21,-0.216,-8.3

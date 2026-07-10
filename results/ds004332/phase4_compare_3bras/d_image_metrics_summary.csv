@@ -1,0 +1,9 @@
+condition,run,consigne,clean_ssim_img,clean_ssim_grad,intra_ssim_grad
+preproc,run-02,nodding,0.729,0.632,0.632
+jdac,run-02,nodding,0.745,0.620,0.696
+jdac_antiartonly,run-02,nodding,0.743,0.643,0.645
+jdac_nodenoise,run-02,nodding,0.734,0.617,0.632
+preproc,run-03,shaking,0.540,0.489,0.489
+jdac,run-03,shaking,0.561,0.487,0.529
+jdac_antiartonly,run-03,shaking,0.552,0.493,0.489
+jdac_nodenoise,run-03,shaking,0.555,0.479,0.471

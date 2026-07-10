@@ -17,7 +17,7 @@ import pandas as pd
 from pathlib import Path
 
 HOME = Path.home()
-REPO = HOME / "Documents/jdac-motion-correction"
+REPO = Path(__file__).resolve().parents[3]
 DERIV = HOME / "Documents/derivatives/ds004332"
 OUT = REPO / "results/ds004332/phase4_compare_3bras/recovery_metrics.csv"
 CONDS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]

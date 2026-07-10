@@ -25,8 +25,9 @@ from pathlib import Path
 from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 
 HOME = Path.home()
+REPO = Path(__file__).resolve().parents[3]
 DERIV = HOME / "Documents/derivatives/ds004332"
-OUT = HOME / "Documents/jdac-motion-correction/results/ds004332/phase4_compare_3bras/image_metrics.csv"
+OUT = REPO / "results/ds004332/phase4_compare_3bras/image_metrics.csv"
 
 # fichier image pour (condition, id) ; preproc = baseline avant correction
 FILE = {

@@ -55,7 +55,18 @@ def show(df, question, analyse, fmt="{:.3f}"):
     print("Analyse :", analyse)
 
 HOME  = Path.home()
-REPO  = HOME / "Documents/jdac-motion-correction"
+
+def find_repo():
+    here = Path.cwd().resolve()
+    for p in [here, *here.parents]:
+        if (p / "results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv").exists():
+            return p
+    fallback = HOME / "Documents/GitHub/jdac-motion-correction"
+    if fallback.exists():
+        return fallback
+    return HOME / "Documents/jdac-motion-correction"
+
+REPO  = find_repo()
 DERIV = HOME / "Documents/derivatives/ds004332"
 CONDITIONS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
 SHORT = {"brut": "brut", "preproc": "prep", "jdac": "jdac",
