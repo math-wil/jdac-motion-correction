@@ -1,0 +1,7 @@
+sub,t1w_path,motion,stratum
+sub-17_run-01,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid/sub-17_run-01/sub-17_run-01_brain.nii.gz,0.16382834,still_low_subject
+sub-17_run-03,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid/sub-17_run-03/sub-17_run-03_brain.nii.gz,0.27162248,shaking_low
+sub-13_run-01,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid/sub-13_run-01/sub-13_run-01_brain.nii.gz,0.22617541,still_medium_subject
+sub-13_run-03,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid/sub-13_run-03/sub-13_run-03_brain.nii.gz,1.5627747,shaking_medium
+sub-14_run-01,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid/sub-14_run-01/sub-14_run-01_brain.nii.gz,0.22340511,still_high_subject
+sub-14_run-03,/home/av62870@ens.ad.etsmtl.ca/Documents/derivatives/ds004332/preproc_rigid/sub-14_run-03/sub-14_run-03_brain.nii.gz,3.2335994,shaking_high

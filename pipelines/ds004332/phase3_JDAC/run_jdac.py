@@ -127,7 +127,8 @@ def denoiser3d(denoiserNet, v_var, sigma=None):
 
 def DenoiseAndAntiArt(Denoiser, AntiArt, noise_patch,
                       learning_rate=0.2, max_iter=4,
-                      threshold_std=0.028, earlystop=True):
+                      threshold_std=0.028, earlystop=True,
+                      antiart_step_lr=1.0):
     v = noise_patch.clone()
     x = v.clone()
     u = torch.zeros_like(v)
@@ -139,7 +140,7 @@ def DenoiseAndAntiArt(Denoiser, AntiArt, noise_patch,
         sigma = torch_std_estimate(xu).item()
         v = denoiser3d(Denoiser, xu, torch.tensor(sigma))
         v_sub_u = (v + u).clip(0, 1)
-        x = anti_artifacts3d(AntiArt, v_sub_u)
+        x = anti_artifacts3d(AntiArt, v_sub_u, step_lr=antiart_step_lr)
         u = (v_sub_u - x)
         est_sigma = torch_std_estimate(x).item()
         if earlystop and est_sigma < threshold_std:
@@ -167,11 +168,12 @@ apply_trans = Compose([
 # Traitement d'un sujet
 # ---------------------------------------------------------------------------
 
-def process_subject(sub, t1w_path, out_dir, Denoiser, AntiArt):
+def process_subject(sub, t1w_path, out_dir, Denoiser, AntiArt,
+                    antiart_step_lr=1.0, max_iter=4, output_tag="jdac"):
     t1w_path = Path(t1w_path)
     sub_out  = Path(out_dir) / sub
     sub_out.mkdir(parents=True, exist_ok=True)
-    out_path = sub_out / f"{sub}_T1w_jdac.nii.gz"
+    out_path = sub_out / f"{sub}_T1w_{output_tag}.nii.gz"
 
     if out_path.exists():
         print(f"  [{sub}] Déjà traité, on passe.")
@@ -208,11 +210,15 @@ def process_subject(sub, t1w_path, out_dir, Denoiser, AntiArt):
     mask = img_tensor > 0
 
     # Inférence JDAC
-    print(f"  [{sub}] Inférence JDAC (CPU, ~5-15 min)...")
+    print(
+        f"  [{sub}] Inférence JDAC "
+        f"(antiart_step_lr={antiart_step_lr:g}, max_iter={max_iter})..."
+    )
     with torch.no_grad():
         denoised, grad_std = DenoiseAndAntiArt(
             Denoiser, AntiArt, img_tensor,
-            max_iter=4, earlystop=True
+            max_iter=max_iter, earlystop=True,
+            antiart_step_lr=antiart_step_lr,
         )
     denoised = (denoised * mask)[0][0].numpy()                            # forme padded
 
@@ -230,7 +236,15 @@ def process_subject(sub, t1w_path, out_dir, Denoiser, AntiArt):
 
     duration = time.time() - t0
     print(f"  [{sub}] ✓ Sauvegardé : {out_path} ({duration:.0f}s, grad_std={grad_std:.4f})")
-    return {"sub": sub, "status": "ok", "duration_s": duration, "grad_std": grad_std}
+    return {
+        "sub": sub,
+        "status": "ok",
+        "duration_s": duration,
+        "grad_std": grad_std,
+        "antiart_step_lr": antiart_step_lr,
+        "max_iter": max_iter,
+        "output_tag": output_tag,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +255,37 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--subjects", required=True, help="CSV sujets sélectionnés")
     parser.add_argument("--out_dir",  required=True, help="Dossier de sortie")
+    parser.add_argument(
+        "--antiart-step-lr",
+        type=float,
+        default=1.0,
+        help="Force du résidu anti-artefact dans ]0, 1] (défaut JDAC : 1.0)",
+    )
+    parser.add_argument(
+        "--max-iter",
+        type=int,
+        default=4,
+        help="Nombre maximal d'itérations JDAC (défaut : 4)",
+    )
+    parser.add_argument(
+        "--output-tag",
+        default=None,
+        help="Suffixe de sortie optionnel; généré automatiquement pour un pilote",
+    )
     args = parser.parse_args()
+
+    if not 0 < args.antiart_step_lr <= 1:
+        parser.error("--antiart-step-lr doit être dans ]0, 1]")
+    if args.max_iter < 1:
+        parser.error("--max-iter doit être >= 1")
+
+    if args.output_tag:
+        output_tag = args.output_tag
+    elif args.antiart_step_lr == 1.0 and args.max_iter == 4:
+        output_tag = "jdac"
+    else:
+        step_tag = f"{args.antiart_step_lr:.2f}".replace(".", "p")
+        output_tag = f"jdac_step{step_tag}_iter{args.max_iter}"
 
     # Vérification qu'on est dans le bon répertoire
     if not Path('./PretrainedModels').exists():
@@ -257,11 +301,16 @@ def main():
     logs = []
     for _, row in subjects.iterrows():
         print(f"--- {row['sub']} | motion={row['motion']:.3f} | {row['stratum']} ---")
-        log = process_subject(row['sub'], row['t1w_path'], args.out_dir, Denoiser, AntiArt)
+        log = process_subject(
+            row['sub'], row['t1w_path'], args.out_dir, Denoiser, AntiArt,
+            antiart_step_lr=args.antiart_step_lr,
+            max_iter=args.max_iter,
+            output_tag=output_tag,
+        )
         logs.append(log)
 
     log_df = pd.DataFrame(logs)
-    log_path = Path(args.out_dir) / "jdac_log.csv"
+    log_path = Path(args.out_dir) / f"{output_tag}_log.csv"
     log_df.to_csv(log_path, index=False)
 
     n_ok = (log_df["status"] == "ok").sum()
