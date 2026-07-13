@@ -62,11 +62,10 @@ Images pour les métriques D :
 
 | Script | Rôle |
 |---|---|
-| `build_notebook.py` | Génère le notebook d'analyse. Attention : la version script contient une section non-linéaire C-bis à intégrer/exécuter proprement avant d'en faire un résultat. |
+| `build_notebook.py` | Génère le notebook d'analyse. Contient la section non-linéaire C-bis (quadratique, splines, par strate) ; régénérer et exécuter le notebook pour en produire les résultats. |
 | `compare_conditions.py` | Version CLI pour les tableaux A/C et analyses par strates. Nécessite les CSV d'épaisseur dérivés locaux. |
 | `compute_image_metrics.py` | Calcule les métriques image du bloc D et écrit `image_metrics.csv`. Nécessite les NIfTI dérivés locaux. |
 | `compute_recovery.py` | Calcule la récupération régionale du bloc E et écrit `recovery_metrics.csv`. Nécessite les CSV d'épaisseur dérivés locaux. |
-| `section_nonlineaire_snippet.py` | Brouillon de section non-linéaire à porter dans le notebook si besoin. |
 
 Dans cette session Codex, les dossiers `~/Documents/derivatives/ds004332` et `~/Documents/raw_datasets/ds004332` ne sont pas présents ; les scripts n'ont donc pas été réexécutés. Les valeurs ci-dessous proviennent du notebook déjà exécuté et des CSV détaillés versionnés.
 

@@ -2,7 +2,7 @@
 
 Équivalent scriptable du notebook `explore_epaisseur_rigide.ipynb`, même logique et mêmes
 modèles. Cinq conditions : brut, preproc, jdac, jdac_antiartonly (anti-artefact x1),
-jdac_nodenoise (boucle x4). Suit le plan de Sylvain (réunion 2026-07-02) :
+jdac_nodenoise (boucle x4). Suit le plan du directeur (réunion 2026-07-02) :
   1. épaisseur sur les scans immobiles (isole le lissage / offset) ;
   2. pentes épaisseur ~ Agitation par condition (globale + intra-sujet) ;
   3. modèles emboîtés M0 (âge+sexe) vs M1 (+Agitation), méthode de Charles ;
