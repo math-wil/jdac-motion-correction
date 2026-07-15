@@ -118,67 +118,116 @@ print(g.groupby("condition", observed=True).size().to_string())
 print("\\nÉpaisseur = moyenne des régions FreeSurfer, en mm. Une ligne = un sujet × run × condition.")''')
 
     # ---------------------------------------------------------------- A. immobiles
-    md("""## A. Effet sur un scan immobile (offset / lissage)
+    md(r"""## A. Le traitement modifie-t-il déjà le scan de référence ?
 
-Sur un scan immobile (run-01), il n'y a pas de mouvement à corriger : toute différence d'épaisseur entre conditions vient du traitement lui-même.""")
+`run-01` est l'acquisition avec consigne immobile et le plus faible mouvement. Ce n'est pas une vérité parfaite, mais c'est notre **référence opérationnelle**. Un correcteur ne devrait pas la modifier fortement.
 
-    code('''imm = g[g["consigne"] == "still"]
-tA = imm.groupby("condition", observed=True)["thickness"].agg(["mean", "std", "count"]).reindex(CONDITIONS)
-tA.columns = ["épaisseur immobile (mm)", "écart-type (mm)", "n sujets"]
-ref = tA.loc["brut", "épaisseur immobile (mm)"]
-tA["écart au brut (mm)"] = tA["épaisseur immobile (mm)"] - ref
-tA["écart au brut (%)"] = 100 * tA["écart au brut (mm)"] / ref
+Pour chaque sujet et chaque condition, l'épaisseur globale est la moyenne non pondérée des 68 épaisseurs régionales FreeSurfer. La comparaison est maintenant **appariée** : une condition n'est comparée au brut que chez les sujets disposant des deux mesures `run-01`.
 
-o = tA["écart au brut (mm)"].drop("brut")
-analyse = (f"Les quatre traitements amincissent tous un cerveau immobile (écart au brut de {o.max():+.3f} à "
-           f"{o.min():+.3f} mm), le plus fort étant {o.idxmin()} ({o.min():+.3f} mm). L'écart se creuse à mesure "
-           f"qu'on applique l'anti-artefact (preproc, puis jdac, puis les variantes). Sur un immobile il n'y a rien "
-           f"à corriger : cet écart mesure un lissage/offset, pas une correction.")
-show(tA, "Sur les scans immobiles, chaque condition change-t-elle l'épaisseur par rapport au brut ?", analyse,
-     {"épaisseur immobile (mm)": "{:.3f}", "écart-type (mm)": "{:.3f}", "n sujets": "{:.0f}",
-      "écart au brut (mm)": "{:+.3f}", "écart au brut (%)": "{:+.1f}"})''')
+Pour un sujet $s$ et une condition $c$ :
+
+$$\Delta_{s,c}=\bar T_{s,run01,c}-\bar T_{s,run01,brut}$$
+
+Une valeur négative signifie que le traitement amincit le cortex mesuré sur le scan de référence.""")
+
+    code('''imm = g[g["consigne"] == "still"].pivot_table(
+    index="subject", columns="condition", values="thickness", observed=True
+)
+rows = []
+for c in CONDITIONS:
+    pair = imm[["brut", c]].dropna() if c != "brut" else imm[["brut"]].dropna()
+    if c == "brut":
+        delta = pair["brut"] * 0
+        treated = pair["brut"]
+    else:
+        delta = pair[c] - pair["brut"]
+        treated = pair[c]
+    rows.append({
+        "condition": c,
+        "n paires": len(pair),
+        "brut run-01 apparié (mm)": pair["brut"].mean(),
+        "condition run-01 (mm)": treated.mean(),
+        "différence appariée moyenne (mm)": delta.mean(),
+        "différence appariée médiane (mm)": delta.median(),
+        "différence moyenne (%)": 100 * delta.mean() / pair["brut"].mean(),
+    })
+tA = pd.DataFrame(rows).set_index("condition").reindex(CONDITIONS)
+
+o = tA["différence appariée moyenne (mm)"].drop("brut")
+analyse = (f"Chez les mêmes sujets, les quatre traitements déplacent l'épaisseur du run-01. "
+           f"L'effet moyen va de {o.max():+.3f} à {o.min():+.3f} mm; le plus fort est {o.idxmin()}. "
+           f"Comme la comparaison est appariée, cet écart ne vient pas d'un changement de composition du groupe. "
+           f"Il mesure l'effet propre du traitement sur la référence opérationnelle.")
+show(tA, "Chez les mêmes sujets, le traitement change-t-il l'épaisseur du run-01 par rapport au brut ?", analyse,
+     {"n paires": "{:.0f}", "brut run-01 apparié (mm)": "{:.3f}",
+      "condition run-01 (mm)": "{:.3f}", "différence appariée moyenne (mm)": "{:+.3f}",
+      "différence appariée médiane (mm)": "{:+.3f}", "différence moyenne (%)": "{:+.1f}"})''')
 
     # ---------------------------------------------------------------- B. par sujet
-    md("""## B. Immobile vs bougé, sujet par sujet
+    md(r"""## B. Les acquisitions traitées se rapprochent-elles de `raw/run-01` ?
 
-Vue sur les données brutes. Pour chaque sujet, son scan immobile (run-01) et son scan bougé (run-03) : si une condition corrige le mouvement, les deux valeurs se rapprochent ; si elle sur-corrige, le bougé passe au-dessus de l'immobile. Un panneau par sujet (`sub-19` en évidence), épaisseur en mm.""")
+La référence horizontale zéro est, pour chaque sujet, sa propre épaisseur globale `raw/run-01`. Chaque point représente :
 
-    code('''pv = g.pivot_table(index=["subject", "condition"], columns="consigne", values="thickness", observed=True)
-subjects = sorted(g["subject"].unique())
-ncol = 5; nrow = int(np.ceil(len(subjects) / ncol))
-fig, axes = plt.subplots(nrow, ncol, figsize=(3.0 * ncol, 2.3 * nrow), sharey=True)
-xpos = np.arange(len(CONDITIONS))
-for ax, subj in zip(axes.ravel(), subjects):
-    nod   = [pv.loc[(subj, c), "nodding"] if (subj, c) in pv.index else np.nan for c in CONDITIONS]
-    still = [pv.loc[(subj, c), "still"] if (subj, c) in pv.index else np.nan for c in CONDITIONS]
-    shak  = [pv.loc[(subj, c), "shaking"] if (subj, c) in pv.index else np.nan for c in CONDITIONS]
-    ax.plot(xpos, still, "-o", color="tab:green",  ms=4, lw=1.3)
-    ax.plot(xpos, nod,   "-s", color="tab:orange", ms=3, lw=1.0)
-    ax.plot(xpos, shak,  "-o", color="tab:red",    ms=4, lw=1.3)
-    hot = (subj == "sub-19")
-    ax.set_title(subj, fontsize=8, color=("crimson" if hot else "black"), fontweight=("bold" if hot else "normal"))
-    ax.set_xticks(xpos); ax.set_xticklabels([SHORT[c] for c in CONDITIONS], fontsize=6, rotation=45)
-    ax.tick_params(labelsize=6)
-for ax in axes.ravel()[len(subjects):]:
-    ax.axis("off")
-axes.ravel()[0].plot([], [], "-o", color="tab:green",  label="immobile (run-01)")
-axes.ravel()[0].plot([], [], "-s", color="tab:orange", label="nodding (run-02)")
-axes.ravel()[0].plot([], [], "-o", color="tab:red",    label="shaking (run-03)")
-axes.ravel()[0].legend(fontsize=6, loc="best")
-fig.suptitle("Épaisseur corticale (mm) par condition : immobile vs bougé, un panneau par sujet", y=1.005)
-fig.supylabel("épaisseur (mm)")
+$$\Delta_{s,r,c}=\bar T_{s,r,c}-\bar T_{s,run01,brut}$$
+
+- proche de zéro : épaisseur globale proche de la référence opérationnelle ;
+- négatif : cortex mesuré plus mince que la référence ;
+- positif : cortex mesuré plus épais.
+
+Cette figure remplace les 22 petits panneaux. Elle montre la distribution entre sujets et permet de voir simultanément le déplacement du run-01 et celui des runs bougés.""")
+
+    code('''raw_still = (g[(g["condition"] == "brut") & (g["consigne"] == "still")]
+             [["subject", "thickness"]].rename(columns={"thickness": "raw_run01"}))
+rel = g.merge(raw_still, on="subject", how="inner")
+rel["écart à raw/run-01 (mm)"] = rel["thickness"] - rel["raw_run01"]
+
+colors = {"still": "tab:green", "nodding": "tab:orange", "shaking": "tab:red"}
+offsets = {"still": -0.23, "nodding": 0.0, "shaking": 0.23}
+fig, ax = plt.subplots(figsize=(11, 5.2))
+for i, c in enumerate(CONDITIONS):
+    for cons in ["still", "nodding", "shaking"]:
+        values = rel[(rel["condition"] == c) & (rel["consigne"] == cons)]["écart à raw/run-01 (mm)"].dropna()
+        if values.empty:
+            continue
+        pos = i + offsets[cons]
+        bp = ax.boxplot(values, positions=[pos], widths=0.18, patch_artist=True,
+                        showfliers=False, medianprops={"color": "black", "lw": 1.4})
+        bp["boxes"][0].set(facecolor=colors[cons], alpha=0.28, edgecolor=colors[cons])
+        for item in bp["whiskers"] + bp["caps"]:
+            item.set(color=colors[cons], alpha=0.7)
+        jitter = np.linspace(-0.035, 0.035, len(values))
+        ax.scatter(pos + jitter, values, s=14, color=colors[cons], alpha=0.55)
+ax.axhline(0, color="black", ls="--", lw=1.2, label="référence individuelle raw/run-01")
+for cons in colors:
+    ax.scatter([], [], color=colors[cons], label={"still":"run-01 immobile", "nodding":"run-02 nodding", "shaking":"run-03 shaking"}[cons])
+ax.set_xticks(range(len(CONDITIONS)))
+ax.set_xticklabels([SHORT[c] for c in CONDITIONS])
+ax.set_ylabel("écart à raw/run-01 du même sujet (mm)")
+ax.set_title("Distance de chaque acquisition à la référence individuelle raw/run-01")
+ax.legend(fontsize=8, ncol=2)
 plt.tight_layout(); plt.show()
 
-over = {}
-for c in CONDITIONS:
-    sub = pv.xs(c, level="condition")[["still", "shaking"]].dropna()
-    over[c] = int((sub["shaking"] > sub["still"]).sum())
-print(f"Analyse : en brut le point bougé (rouge) est sous l'immobile (vert) chez la plupart des sujets "
-      f"(bougé plus épais chez seulement {over['brut']}), le mouvement amincit. Sous nodenoise le bougé passe "
-      f"au-dessus de l'immobile chez {over['jdac_nodenoise']} sujets et {over['jdac_antiartonly']} sous antiartonly : "
-      f"sur-correction visible. jdac et preproc restent proches du comportement du brut.")''')
+pv = g.pivot_table(index=["subject", "condition"], columns="consigne", values="thickness", observed=True)
 
-    md("""Le décompte chiffre la figure : pour chaque sujet, l'écart immobile − bougé (mm) est comparé entre le brut et la condition.""")
+case19 = (rel[rel["subject"] == "sub-19"].pivot_table(
+    index="condition", columns="consigne", values="écart à raw/run-01 (mm)", observed=True
+).reindex(CONDITIONS))
+show(case19, "Pour sub-19, à quelle distance chaque run et chaque traitement se trouvent-ils de raw/run-01 ?",
+     "Ce tableau numérique accompagne le montage des trois runs de sub-19. Une valeur proche de zéro est souhaitable; "
+     "une valeur positive importante indique une sur-correction et une valeur négative importante un amincissement.",
+     "{:+.3f}")''')
+
+    md(r"""Le tableau suivant complète la figure. Pour chaque sujet :
+
+$$Écart_{c}=T_{run01,c}-T_{run03,c}$$
+
+Seuls les sujets chez qui le raw montre le comportement attendu ($Écart_{brut}>0$, donc shaking plus mince que run-01) sont classés :
+
+- **amélioré** : $0 \leq Écart_c < Écart_{brut}$ ; le shaking se rapproche du run-01 sans le dépasser ;
+- **sur-corrigé** : $Écart_c<0$ ; le shaking devient plus épais que le run-01 ;
+- **inchangé ou pire** : $Écart_c\geq Écart_{brut}$.
+
+B reste une analyse d'épaisseur globale. La section E vérifie ensuite la fidélité région par région.""")
 
     code('''ec = pv.reset_index().dropna(subset=["still", "shaking"])
 ec["ecart"] = ec["still"] - ec["shaking"]          # > 0 : le mouvement amincit
@@ -208,9 +257,27 @@ show(tB, "Chez combien de sujets l'écart immobile − bougé se réduit vraimen
       "écart médian brut (mm)": "{:.3f}", "écart médian condition (mm)": "{:.3f}"})''')
 
     # ---------------------------------------------------------------- C. M0 vs M1
-    md("""## C. Le mouvement prédit-il encore l'épaisseur ? (modèles M0 vs M1)
+    md(r"""## C. Après traitement, l'épaisseur reste-t-elle associée au mouvement ?
 
-Pour chaque condition, deux modèles sur l'épaisseur moyenne par acquisition, avec un effet aléatoire par sujet : **M0** = âge + sexe ; **M1** = M0 + score Agitation. La **p-value** est la probabilité d'un gain d'ajustement aussi grand si le mouvement n'avait aucun effet (< 0.05 = le mouvement apporte de l'information ; grande = il n'en apporte plus). Le **coefficient** d'Agitation (mm par point) donne le sens et l'ampleur.""")
+Le mot **prédire** signifie ici : « connaître le score Agitation aide-t-il à expliquer les différences d'épaisseur entre les acquisitions ? ». Il ne s'agit pas de prédire l'épaisseur d'un futur patient.
+
+Chaque condition est analysée séparément. Pour le sujet $i$ et son acquisition $j$, le modèle complet est :
+
+$$T_{ij}=\beta_0+\beta_{âge}âge_i+\beta_{sexe}sexe_i+\beta_{agit}Agitation_{ij}+u_i+\varepsilon_{ij}$$
+
+- $T_{ij}$ : épaisseur moyenne des 68 régions pour cette acquisition ;
+- $\beta_{agit}$ : changement moyen d'épaisseur, en mm, pour +1 point d'Agitation ;
+- $u_i$ : **intercept aléatoire du sujet**. Il autorise chaque sujet à avoir son niveau d'épaisseur habituel, tout en estimant une pente Agitation commune. Dans le code : `groups=d["subject"]` dans `mixedlm` ;
+- $\varepsilon_{ij}$ : variation restante non expliquée.
+
+Deux modèles emboîtés sont comparés :
+
+- **M0** : âge + sexe + intercept aléatoire du sujet ;
+- **M1** : M0 + Agitation.
+
+La p-value vient d'un test du rapport de vraisemblance entre M0 et M1. Sous l'hypothèse « Agitation n'ajoute réellement aucune information », elle mesure à quel point le gain d'ajustement observé serait inhabituel. Une petite valeur, par exemple `< 0,05`, indique que l'ajout d'Agitation améliore clairement le modèle. Une valeur plus grande ne prouve pas l'absence d'effet : elle indique que les données ne permettent pas de le distinguer clairement du bruit.
+
+Les lignes diffèrent parce que chaque traitement modifie les épaisseurs, leur relation au mouvement et leur variabilité. La p-value dépend à la fois de la taille du coefficient, de la dispersion des données et du nombre d'acquisitions disponibles.""")
 
     code('''def fit(formula, d):
     return smf.mixedlm(formula, d, groups=d["subject"]).fit(reml=False, method="powell", disp=False)
@@ -222,19 +289,25 @@ for c in CONDITIONS:
     m1 = fit("thickness ~ age + sex_bin + agitation", d)
     lr = 2 * (m1.llf - m0.llf)
     coef = m1.params["agitation"]
+    se = m1.bse["agitation"]
     rows.append({"condition": c, "n acquisitions": d.groupby(["subject", "run"]).ngroups,
-                 "coef Agitation (mm/point)": coef, "p (M1 vs M0)": stats.chi2.sf(lr, 1),
+                 "coef Agitation (mm/point)": coef,
+                 "IC95 bas": coef - 1.96 * se, "IC95 haut": coef + 1.96 * se,
+                 "p ajout Agitation (M1 vs M0)": stats.chi2.sf(lr, 1),
                  "sens": "amincit" if coef < 0 else "épaissit"})
 tC = pd.DataFrame(rows).set_index("condition")
 
-ns = [c for c in CONDITIONS if tC.loc[c, "p (M1 vs M0)"] >= 0.05]
+ns = [c for c in CONDITIONS if tC.loc[c, "p ajout Agitation (M1 vs M0)"] >= 0.05]
 analyse = (f"En brut le mouvement prédit fortement l'épaisseur (coef {tC.loc['brut','coef Agitation (mm/point)']:+.4f} mm/point, "
-           f"p={tC.loc['brut','p (M1 vs M0)']:.1g}) : il l'amincit. Le mouvement ne prédit plus l'épaisseur (p≥0.05) pour : "
-           f"{', '.join(ns) if ns else 'aucune condition'} — jdac réalise le meilleur découplage (p={tC.loc['jdac','p (M1 vs M0)']:.2g}). "
+           f"p={tC.loc['brut','p ajout Agitation (M1 vs M0)']:.1g}) : il l'amincit. L'ajout d'Agitation n'améliore pas clairement le modèle (p≥0.05) pour : "
+           f"{', '.join(ns) if ns else 'aucune condition'} — jdac a une association résiduelle plus faible (p={tC.loc['jdac','p ajout Agitation (M1 vs M0)']:.2g}). "
            f"antiartonly et nodenoise ont un coefficient positif ({tC.loc['jdac_nodenoise','coef Agitation (mm/point)']:+.4f}, "
-           f"p={tC.loc['jdac_nodenoise','p (M1 vs M0)']:.1g} pour nodenoise) : le mouvement épaissit l'épaisseur mesurée = sur-correction.")
+           f"p={tC.loc['jdac_nodenoise','p ajout Agitation (M1 vs M0)']:.1g} pour nodenoise) : davantage de mouvement est associé à une épaisseur mesurée plus grande, signe de sur-correction. "
+           f"Ce résultat doit être lu avec A et E : une pente faible ne suffit pas si le traitement déplace aussi les scans de référence.")
 show(tC, "Après la condition, ajouter le score de mouvement améliore-t-il encore le modèle ?", analyse,
-     {"n acquisitions": "{:.0f}", "coef Agitation (mm/point)": "{:+.4f}", "p (M1 vs M0)": "{:.2g}", "sens": "{}"})''')
+     {"n acquisitions": "{:.0f}", "coef Agitation (mm/point)": "{:+.4f}",
+      "IC95 bas": "{:+.4f}", "IC95 haut": "{:+.4f}",
+      "p ajout Agitation (M1 vs M0)": "{:.2g}", "sens": "{}"})''')
 
     # ---------------------------------------------------------------- C-bis. non-linéaire + strates
     md("""## C-bis. Forme non-linéaire du lien mouvement-épaisseur, par strate
@@ -244,7 +317,9 @@ La section C teste un lien linéaire (un seul coefficient) entre Agitation et é
 - **quadratique** : ajoute Agitation² (`I(agitation**2)`) ;
 - **splines** : ajoute une base de splines à 3 degrés de liberté (`bs(agitation, df=3)`), sans imposer de forme fonctionnelle.
 
-Comparaison par ΔAIC à la forme linéaire (ΔAIC < 0 : la forme non-linéaire est préférée ; un écart supérieur à 2 est considéré comme un appui notable, suivant le repère usuel pour l'AIC). Même effet aléatoire par sujet que la section C (`mixedlm`, `reml=False`, `method="powell"`). Niveaux de mouvement (mêmes seuils que le score Agitation) : faible (< 0.3), léger (0.3-1.0), modéré (1.0-2.0), sévère (> 2.0).""")
+Comparaison par ΔAIC à la forme linéaire (ΔAIC < 0 : la forme non-linéaire est préférée ; un écart supérieur à 2 est considéré comme un appui notable, suivant le repère usuel pour l'AIC). Même effet aléatoire par sujet que la section C (`mixedlm`, `reml=False`, `method="powell"`).
+
+La courbe continue (quadratique/spline) est l'analyse principale. Les niveaux sont une lecture descriptive secondaire utilisant les **mêmes seuils que l'analyse précédente** : faible `< 0,3`, léger `0,3–1,0`, modéré `1,0–2,0`, sévère `> 2,0`. Nous n'avons pas retrouvé de justification documentée de leur choix initial : ils doivent donc être présentés comme des coupures pragmatiques provisoires, et non comme des seuils cliniques validés ou objectivement dérivés des données. Ils ne sont pas réoptimisés sur les résultats actuels. Sur les 66 acquisitions, ils donnent respectivement 23, 18, 14 et 11 acquisitions. Leur maintien sert uniquement la comparabilité avec l'analyse d'il y a deux semaines et doit être validé avec le directeur.""")
 
     code('''def aic(res):
     return -2 * res.llf + 2 * (len(res.fe_params) + 2)
@@ -325,9 +400,26 @@ analyse = ("À chaque niveau, un écart (%) proche de 0 et non significatif (p�
 show(tCbis_strat, "L'écart (%) au brut, par niveau de mouvement, est-il stable ou dépend-il de la sévérité ?", analyse, "{:+.2f}")''')
 
     # ---------------------------------------------------------------- D. image
-    md("""## D. Contours vs scan propre (protocole d'évaluation de JDAC)
+    md(r"""## D. L'image et les contours ressemblent-ils davantage à la référence ?
 
-L'épaisseur seule ne distingue pas correction et lissage. On reprend donc l'évaluation de l'article JDAC : comparer, en pleine référence, chaque scan bougé au scan **propre** du même sujet, sur l'image **et sur les cartes de gradient** (les contours). Images sur la même grille rigide, aucun recalage. SSIM entre 0 et 1 (1 = identique au propre), moyennée sur les sujets. Métriques calculées par `compute_image_metrics.py`.""")
+Le SSIM (*Structural Similarity Index*) compare deux images dans des fenêtres locales, puis moyenne le résultat. Pour deux fenêtres $x$ et $y$ :
+
+$$SSIM(x,y)=\frac{(2\mu_x\mu_y+C_1)(2\sigma_{xy}+C_2)}{(\mu_x^2+\mu_y^2+C_1)(\sigma_x^2+\sigma_y^2+C_2)}$$
+
+- $\mu_x,\mu_y$ : intensités moyennes locales (luminance) ;
+- $\sigma_x,\sigma_y$ : contrastes locaux ;
+- $\sigma_{xy}$ : structures locales variant ensemble ;
+- $C_1,C_2$ : petites constantes de stabilité.
+
+Le score va approximativement de 0 à 1 dans ce contexte ; 1 signifie que les deux images comparées sont identiques. Avant le calcul, chaque volume est normalisé robustement entre ses percentiles cérébraux 1 et 99, ramené dans `[0,1]`, et comparé dans la boîte englobante du cerveau commun.
+
+Trois lectures complémentaires sont conservées dans **un seul tableau** :
+
+1. **SSIM image vs run-01 preproc** : ressemblance de toute l'image bougée au run-01 de référence ; un lissage peut artificiellement améliorer ce score.
+2. **SSIM gradient vs run-01 preproc** : même référence, mais sur la magnitude du gradient $\|\nabla I\|$, qui met davantage l'accent sur les frontières et les contours.
+3. **SSIM gradient intra-condition** : le run bougé d'une condition est comparé au run-01 ayant subi la même condition, par exemple `JDAC run-03` contre `JDAC run-01`. Cela réduit la différence d'apparence propre à la méthode (contraste, intensité, lissage), mais la référence est elle-même traitée : ce score mesure la cohérence interne, pas la vérité anatomique.
+
+Les images rigides sont sur la même grille ; aucun recalage supplémentaire n'est appliqué. Métriques calculées par `compute_image_metrics.py`.""")
 
     code('''im = pd.read_csv(REPO / "results/ds004332/phase4_compare_3bras/image_metrics.csv")
 IMGCONDS = ["preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
@@ -342,35 +434,58 @@ A_grad = (f"Sur les contours, contre le propre non traité, aucune condition ne 
           f"(preproc {s.loc['preproc','clean_ssim_grad']:.3f}, jdac {s.loc['jdac','clean_ssim_grad']:.3f}, "
           f"nodenoise {s.loc['jdac_nodenoise','clean_ssim_grad']:.3f}). Ce test mélange correction et changement d'intensité, "
           f"d'où le tableau intra ci-dessous.")
-A_intra = (f"Sans le biais d'intensité (contre son propre immobile), jdac gagne nettement en contours au fort mouvement "
+A_intra = (f"En comparaison intra-condition (même traitement pour le run bougé et son run-01), jdac gagne en cohérence des contours au fort mouvement "
            f"({s.loc['jdac','intra_ssim_grad']:.3f} vs preproc {s.loc['preproc','intra_ssim_grad']:.3f}) = mouvement réduit. "
-           f"nodenoise ne gagne pas ({s.loc['jdac_nodenoise','intra_ssim_grad']:.3f}, ≤ preproc) : sa netteté ne correspond "
-           f"pas à l'anatomie propre.")
+           f"nodenoise ne gagne pas ({s.loc['jdac_nodenoise','intra_ssim_grad']:.3f}, ≤ preproc). Attention : cette comparaison "
+           f"mesure une cohérence interne; elle ne prouve pas que les contours traités sont anatomiquement vrais.")
 
-show(agg["clean_ssim_img"].unstack("run").reindex(IMGCONDS).rename(columns=lab),
-     "SSIM image vs scan propre (moyenne sujets, 0 = différent, 1 = identique)", A_img)
-show(agg["clean_ssim_grad"].unstack("run").reindex(IMGCONDS).rename(columns=lab),
-     "SSIM des contours (gradient) vs scan propre", A_grad)
-show(agg["intra_ssim_grad"].unstack("run").reindex(IMGCONDS).rename(columns=lab),
-     "SSIM des contours vs le scan immobile de la MÊME condition (sans le biais d'intensité)", A_intra)''')
+d_table = agg.reset_index().rename(columns={
+    "condition": "condition", "run": "run",
+    "clean_ssim_img": "SSIM image vs run-01 preproc",
+    "clean_ssim_grad": "SSIM gradient vs run-01 preproc",
+    "intra_ssim_grad": "SSIM gradient vs run-01 même condition",
+}).set_index(["condition", "run"])
+analyse = A_img + " " + A_grad + " " + A_intra
+show(d_table, "La correction rapproche-t-elle l'image et ses contours du run-01 du même sujet ?",
+     analyse, "{:.3f}")''')
 
     # ---------------------------------------------------------------- E. récupération
-    md("""## E. Les mesures suivent-elles ? Récupération vers la vraie épaisseur (par région, mm)
+    md(r"""## E. Les 68 épaisseurs régionales se rapprochent-elles de la référence ?
 
-Question de fond pour un article : pour un scan bougé, l'épaisseur **par région** se rapproche-t-elle de la vraie valeur (le scan immobile du même sujet) après correction ? On évite la moyenne globale (qui peut coïncider par hasard) et on mesure la distance région par région. Trois distances : **mouvement restant** (écart au scan immobile de la même condition, net d'offset), **erreur à la vérité** (écart au scan immobile brut), **offset** (distorsion appliquée à un scan propre). Métriques calculées par `compute_recovery.py`.""")
+`raw/run-01` du même sujet est la **référence opérationnelle** : c'est le scan le moins traité et avec consigne immobile, mais pas une vérité anatomique parfaite.
+
+Pour un sujet $s$, une condition $c$, un run bougé $k$ et les $R=68$ régions, on note $T_{s,k,c,r}$ l'épaisseur de la région $r$.
+
+### 1. Distorsion du scan de référence
+
+$$Offset_{s,c}=\frac{1}{R}\sum_r|T_{s,run01,c,r}-T_{s,run01,brut,r}|$$
+
+Cette quantité mesure ce que la condition change déjà sur le run-01. Elle est absolue et régionale, contrairement au déplacement global signé de A : les différences positives et négatives ne peuvent pas se compenser.
+
+### 2. Écart résiduel entre runs dans la même condition
+
+$$Résiduel_{s,k,c}=\frac{1}{R}\sum_r|T_{s,k,c,r}-T_{s,run01,c,r}|$$
+
+Les deux scans ont subi le même traitement. Un déplacement constant propre à la condition se compense en grande partie ; cette mesure décrit surtout le motif régional restant entre le run bougé et le run-01 traité.
+
+### 3. Erreur totale à la référence opérationnelle
+
+$$Erreur_{s,k,c}=\frac{1}{R}\sum_r|T_{s,k,c,r}-T_{s,run01,brut,r}|$$
+
+C'est le critère principal : l'épaisseur régionale du run bougé traité se rapproche-t-elle réellement de `raw/run-01` ? Les trois mesures sont nécessaires pour distinguer une vraie réduction du mouvement d'un simple déplacement ou d'une compensation. Elles sont d'abord calculées par sujet, puis moyennées entre les sujets. Métriques calculées par `compute_recovery.py`.""")
 
     code('''rec = pd.read_csv(REPO / "results/ds004332/phase4_compare_3bras/recovery_metrics.csv")
 RCONDS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
 for run, cons in [("run-03", "shaking (fort mouvement)"), ("run-02", "nodding (mouvement modéré)")]:
     t = (rec[rec["run"] == run].groupby("condition")[["mae_within", "mae_truth", "offset"]].mean().reindex(RCONDS))
     bt, bw = t.loc["brut", "mae_truth"], t.loc["brut", "mae_within"]
-    analyse = (f"Aucune condition ne descend sous l'erreur du brut à la vérité ({bt:.3f} mm) : jdac {t.loc['jdac','mae_truth']:.3f}, "
+    analyse = (f"Aucune condition ne descend sous l'erreur du brut à la référence opérationnelle ({bt:.3f} mm) : jdac {t.loc['jdac','mae_truth']:.3f}, "
                f"nodenoise {t.loc['jdac_nodenoise','mae_truth']:.3f} s'en éloignent (à cause de l'offset). Net d'offset "
                f"(mouvement restant), nodenoise empire le motif régional ({t.loc['jdac_nodenoise','mae_within']:.3f} > brut {bw:.3f}) ; "
                f"seul preproc le réduit un peu ({t.loc['preproc','mae_within']:.3f}). L'épaisseur régionale du scan bougé ne se "
                f"rapproche donc pas de la vraie valeur : les mesures ne suivent pas.")
-    t.columns = ["mouvement restant (mm)", "erreur à la vérité (mm)", "offset sur le propre (mm)"]
-    show(t, f"Scan {cons} : l'épaisseur régionale se rapproche-t-elle de la vraie valeur (immobile brut) ?", analyse, "{:.3f}")''')
+    t.columns = ["écart résiduel intra-condition (mm)", "erreur à raw/run-01 (mm)", "distorsion de run-01 (mm)"]
+    show(t, f"Scan {cons} : l'épaisseur régionale se rapproche-t-elle de la référence raw/run-01 ?", analyse, "{:.3f}")''')
 
     md("""## Synthèse
 

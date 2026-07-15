@@ -15,6 +15,13 @@ Bras JDAC : le cerveau prétraité (Phase 2) passe par JDAC, puis recon-all. Ser
   `~/Documents/derivatives/ds004332/jdac_strength_pilot/`; aucune sortie JDAC
   existante n'est écrasée.
 
+### Figure de réunion sur un même cerveau
+
+- `fig_sub19_three_runs.py` produit un montage de `sub-19` sur `run-01`,
+  `run-02` et `run-03`, pour l'entrée preproc, JDAC complet, anti-artefact 1×
+  et sans débruiteur 4×. Les trois lignes représentent le même cerveau avec
+  un mouvement croissant.
+
 - `run_jdac.py` : applique JDAC complet (reproduit `JDAC_Application.ipynb` des auteurs), env `cortical-motion`, lancé depuis `~/Documents/jdac`.
 - `run_jdac_nodenoise.py` : variantes sans débruiteur, `jdac_antiartonly` (anti-artefact ×1) et `jdac_nodenoise` (boucle ×4, débruiteur remplacé par l'identité).
 - `all66_subjects.csv` / `all66_subjects_rigid.csv` : listes d'entrées (natif / rigide).
