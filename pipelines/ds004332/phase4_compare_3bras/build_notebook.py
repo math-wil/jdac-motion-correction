@@ -36,23 +36,56 @@ def build():
 
 **Sources** : brut `results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv` ; preproc/jdac `derivatives/ds004332/thickness_{preproc,jdac}_rigid_{lh,rh}.csv` ; variantes `derivatives/ds004332/thickness_jdac_{antiartonly,nodenoise}_rigid/…` ; Agitation `results/ds004332/agitation/ds004332_agitation_clinica.csv` ; âge/sexe `raw_datasets/ds004332/participants.tsv`.""")
 
+    md("""<style>
+/* Présentation lisible sur un écran pendant la réunion. */
+.jp-Notebook, .notebook-container { font-size: 16px; }
+.jp-MarkdownOutput, .rendered_html { font-size: 17px; line-height: 1.65; }
+.jp-MarkdownOutput h2, .rendered_html h2 {
+  margin-top: 2.2em; padding-top: 0.45em; border-top: 2px solid #9aa7bd;
+}
+.jp-MarkdownOutput h3, .rendered_html h3 { margin-top: 1.6em; }
+.jp-OutputArea, .output_area { margin: 1.1em 0 2.2em 0; }
+.jp-RenderedHTMLCommon table, .rendered_html table { margin: 1.1em 0 1.8em 0; }
+.question-box, .analysis-box {
+  margin: 1.0em 0 1.3em 0; padding: 0.8em 1.0em; border-radius: 6px;
+}
+.question-box { background: #eef4ff; border-left: 5px solid #5277a8; }
+.analysis-box { background: #f3f7f0; border-left: 5px solid #638657; }
+</style>""")
+
     code('''from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
 import statsmodels.formula.api as smf
-from IPython.display import display
+from statsmodels.stats.multitest import multipletests
+from IPython.display import display, HTML
+from html import escape
 import warnings; warnings.filterwarnings("ignore")
 
 def show(df, question, analyse, fmt="{:.3f}"):
-    # Tableau précédé de la question, suivi de l'analyse des résultats.
-    print("Question :", question)
-    display(df.style.format(fmt, na_rep="—").set_table_styles([
-        {"selector": "th", "props": "background-color:#d9e1f2;padding:5px 12px;font-size:12px;"},
-        {"selector": "td", "props": "padding:5px 12px;font-size:12px;text-align:right;"},
+    # Question, tableau aéré, puis résultats en points courts.
+    display(HTML(f'<div class="question-box"><b>Question</b><br>{escape(question)}</div>'))
+    styled = (df.style.format(fmt, na_rep="—").set_table_styles([
+        {"selector": "table", "props": "margin:12px 0 22px 0;border-collapse:collapse;"},
+        {"selector": "th", "props": "background-color:#d9e1f2;padding:9px 14px;font-size:15px;"},
+        {"selector": "td", "props": "padding:8px 14px;font-size:15px;text-align:right;"},
         {"selector": "tbody tr:nth-child(odd)", "props": "background-color:#f6f6f6;"}]))
-    print("Analyse :", analyse)
+    display(styled)
+    points = analyse if isinstance(analyse, (list, tuple)) else [analyse]
+    items = "".join(f"<li>{escape(str(point))}</li>" for point in points)
+    display(HTML(f'<div class="analysis-box"><b>Résultats à retenir</b><ul>{items}</ul></div>'))
+
+plt.rcParams.update({
+    "font.size": 13,
+    "axes.titlesize": 15,
+    "axes.labelsize": 13,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 11,
+    "figure.dpi": 120,
+})
 
 HOME  = Path.home()
 
@@ -183,7 +216,7 @@ rel["écart à raw/run-01 (mm)"] = rel["thickness"] - rel["raw_run01"]
 
 colors = {"still": "tab:green", "nodding": "tab:orange", "shaking": "tab:red"}
 offsets = {"still": -0.23, "nodding": 0.0, "shaking": 0.23}
-fig, ax = plt.subplots(figsize=(11, 5.2))
+fig, ax = plt.subplots(figsize=(12.5, 6.2))
 for i, c in enumerate(CONDITIONS):
     for cons in ["still", "nodding", "shaking"]:
         values = rel[(rel["condition"] == c) & (rel["consigne"] == cons)]["écart à raw/run-01 (mm)"].dropna()
@@ -204,8 +237,9 @@ ax.set_xticks(range(len(CONDITIONS)))
 ax.set_xticklabels([SHORT[c] for c in CONDITIONS])
 ax.set_ylabel("écart à raw/run-01 du même sujet (mm)")
 ax.set_title("Distance de chaque acquisition à la référence individuelle raw/run-01")
-ax.legend(fontsize=8, ncol=2)
-plt.tight_layout(); plt.show()
+ax.legend(fontsize=11, ncol=2, frameon=False)
+ax.grid(axis="y", alpha=0.18)
+plt.tight_layout(pad=2.0); plt.show()
 
 pv = g.pivot_table(index=["subject", "condition"], columns="consigne", values="thickness", observed=True)
 
@@ -298,34 +332,53 @@ for c in CONDITIONS:
 tC = pd.DataFrame(rows).set_index("condition")
 
 ns = [c for c in CONDITIONS if tC.loc[c, "p ajout Agitation (M1 vs M0)"] >= 0.05]
-analyse = (f"En brut le mouvement prédit fortement l'épaisseur (coef {tC.loc['brut','coef Agitation (mm/point)']:+.4f} mm/point, "
-           f"p={tC.loc['brut','p ajout Agitation (M1 vs M0)']:.1g}) : il l'amincit. L'ajout d'Agitation n'améliore pas clairement le modèle (p≥0.05) pour : "
-           f"{', '.join(ns) if ns else 'aucune condition'} — jdac a une association résiduelle plus faible (p={tC.loc['jdac','p ajout Agitation (M1 vs M0)']:.2g}). "
-           f"antiartonly et nodenoise ont un coefficient positif ({tC.loc['jdac_nodenoise','coef Agitation (mm/point)']:+.4f}, "
-           f"p={tC.loc['jdac_nodenoise','p ajout Agitation (M1 vs M0)']:.1g} pour nodenoise) : davantage de mouvement est associé à une épaisseur mesurée plus grande, signe de sur-correction. "
-           f"Ce résultat doit être lu avec A et E : une pente faible ne suffit pas si le traitement déplace aussi les scans de référence.")
+analyse = [
+    f"Brut : le mouvement est associé à un amincissement (coef {tC.loc['brut','coef Agitation (mm/point)']:+.4f} mm/point, p={tC.loc['brut','p ajout Agitation (M1 vs M0)']:.1g}).",
+    f"JDAC : association résiduelle plus faible (p={tC.loc['jdac','p ajout Agitation (M1 vs M0)']:.2g}). Conditions sans effet clairement distinguable : {', '.join(ns) if ns else 'aucune'}.",
+    f"Antiartonly et nodenoise inversent la pente ; nodenoise atteint {tC.loc['jdac_nodenoise','coef Agitation (mm/point)']:+.4f} mm/point (p={tC.loc['jdac_nodenoise','p ajout Agitation (M1 vs M0)']:.1g}), signe de sur-correction.",
+    "Une pente faible ne suffit pas si le traitement déplace aussi le scan de référence : lire avec A et E."
+]
 show(tC, "Après la condition, ajouter le score de mouvement améliore-t-il encore le modèle ?", analyse,
      {"n acquisitions": "{:.0f}", "coef Agitation (mm/point)": "{:+.4f}",
       "IC95 bas": "{:+.4f}", "IC95 haut": "{:+.4f}",
       "p ajout Agitation (M1 vs M0)": "{:.2g}", "sens": "{}"})''')
 
     # ---------------------------------------------------------------- C-bis. non-linéaire + strates
-    md("""## C-bis. Forme non-linéaire du lien mouvement-épaisseur, par strate
+    md("""## C-bis. Le lien mouvement-épaisseur change-t-il selon la sévérité ?
 
-La section C teste un lien linéaire (un seul coefficient) entre Agitation et épaisseur. Ce lien peut ne pas être linéaire : effet qui n'apparaît qu'au-delà d'un certain mouvement, plateau, ou inversion aux valeurs extrêmes. Deux formes plus flexibles sont ajoutées au modèle M1 de la section C (âge + sexe + Agitation) :
+La section C impose une pente droite. C-bis compare trois comportements :
 
-- **quadratique** : ajoute Agitation² (`I(agitation**2)`) ;
-- **splines** : ajoute une base de splines à 3 degrés de liberté (`bs(agitation, df=3)`), sans imposer de forme fonctionnelle.
+- **linéaire** : même pente à tous les niveaux de mouvement ;
+- **quadratique** : courbure simple, par exemple accélération ou inversion ;
+- **spline** : courbe flexible à trois degrés de liberté.
 
-Comparaison par ΔAIC à la forme linéaire (ΔAIC < 0 : la forme non-linéaire est préférée ; un écart supérieur à 2 est considéré comme un appui notable, suivant le repère usuel pour l'AIC). Même effet aléatoire par sujet que la section C (`mixedlm`, `reml=False`, `method="powell"`).
+La comparaison utilise le **ΔAIC** :
 
-La courbe continue (quadratique/spline) est l'analyse principale. Les niveaux sont une lecture descriptive secondaire utilisant les **mêmes seuils que l'analyse précédente** : faible `< 0,3`, léger `0,3–1,0`, modéré `1,0–2,0`, sévère `> 2,0`. Nous n'avons pas retrouvé de justification documentée de leur choix initial : ils doivent donc être présentés comme des coupures pragmatiques provisoires, et non comme des seuils cliniques validés ou objectivement dérivés des données. Ils ne sont pas réoptimisés sur les résultats actuels. Sur les 66 acquisitions, ils donnent respectivement 23, 18, 14 et 11 acquisitions. Leur maintien sert uniquement la comparabilité avec l'analyse d'il y a deux semaines et doit être validé avec le directeur.""")
+- proche de 0 : aucune amélioration claire par rapport à la droite ;
+- inférieur à −2 : appui notable pour une forme plus flexible ;
+- le modèle au plus petit AIC est préféré, sans prouver à lui seul un mécanisme biologique.
+
+Les strates sont une lecture descriptive secondaire :
+
+- faible : Agitation < 0,3 ;
+- léger : 0,3 à 1,0 ;
+- modéré : 1,0 à 2,0 ;
+- sévère : > 2,0.
+
+Ces seuils sont conservés pour comparer avec l'analyse précédente. Ils sont pragmatiques et provisoires, pas des seuils cliniques validés.""")
 
     code('''def aic(res):
-    return -2 * res.llf + 2 * (len(res.fe_params) + 2)
+    return res.aic
 
 g["niveau"] = pd.cut(g["agitation"], [0, 0.3, 1.0, 2.0, np.inf],
                       labels=["faible", "leger", "modere", "severe"], include_lowest=True)
+
+acquisitions = g[["subject", "run", "agitation", "niveau"]].drop_duplicates(["subject", "run"])
+effectifs = acquisitions.groupby("niveau", observed=True).size().rename("n acquisitions").to_frame()
+show(effectifs, "Combien d'acquisitions composent chaque strate de mouvement ?",
+     ["Les seuils sont identiques à l'analyse précédente.",
+      "Les strates localisent les changements ; la courbe continue reste l'analyse principale."],
+     "{:.0f}")
 
 formes = {"lineaire": "thickness ~ age + sex_bin + agitation",
           "quadratique": "thickness ~ age + sex_bin + agitation + I(agitation**2)",
@@ -333,9 +386,12 @@ formes = {"lineaire": "thickness ~ age + sex_bin + agitation",
           "par_strate": "thickness ~ age + sex_bin + C(niveau)"}
 
 rows = []
+fits_spline = {}
 for c in CONDITIONS:
     d = g[g["condition"] == c].dropna(subset=["age", "sex_bin", "agitation", "thickness", "niveau"])
-    aics = {nom: aic(fit(f, d)) for nom, f in formes.items()}
+    modeles = {nom: fit(f, d) for nom, f in formes.items()}
+    aics = {nom: aic(res) for nom, res in modeles.items()}
+    fits_spline[c] = modeles["splines"]
     base = aics["lineaire"]
     rows.append({"condition": c, **{f"dAIC {nom}": aics[nom] - base for nom in formes}})
 tCbis = pd.DataFrame(rows).set_index("condition").reindex(CONDITIONS)
@@ -348,8 +404,35 @@ analyse = (f"La forme linéaire reste préférée (ΔAIC ≥ -2 pour le quadrati
            f"mouvement-épaisseur n'est pas une simple pente et mérite d'être regardé région par région plutôt que "
            f"globalement. Si `par_strate` (catégoriel) a le plus petit AIC pour une condition, le lien n'est pas "
            f"monotone pour cette condition (un modèle continu, même quadratique, ne le capture pas).")
-show(tCbis, "Une forme non-linéaire (quadratique ou splines) explique-t-elle mieux l'épaisseur que le lien linéaire ?",
-     analyse, "{:+.2f}")''')
+show(tCbis, "Une forme non linéaire explique-t-elle mieux l'épaisseur que le lien linéaire ?",
+     [analyse,
+      "La comparaison porte sur la forme du lien ; elle doit être lue avec les effectifs et les courbes ci-dessous."],
+     "{:+.2f}")
+
+fig, ax = plt.subplots(figsize=(12.5, 6.2))
+palette = dict(zip(CONDITIONS, ["#333333", "#2f7d32", "#2368a2", "#d17a00", "#a93636"]))
+for c in CONDITIONS:
+    d = g[g["condition"] == c].dropna(subset=["age", "sex_bin", "agitation", "thickness"])
+    x = np.linspace(d["agitation"].min(), d["agitation"].max(), 180)
+    grille = pd.DataFrame({
+        "agitation": x,
+        "age": d["age"].median(),
+        "sex_bin": int(d["sex_bin"].mode().iloc[0]),
+    })
+    ax.plot(x, fits_spline[c].predict(grille), lw=2.4, color=palette[c], label=SHORT[c])
+for seuil in [0.3, 1.0, 2.0]:
+    ax.axvline(seuil, color="#777777", ls="--", lw=1)
+ax.text(0.15, 1.01, "faible", transform=ax.get_xaxis_transform(), ha="center")
+ax.text(0.65, 1.01, "léger", transform=ax.get_xaxis_transform(), ha="center")
+ax.text(1.50, 1.01, "modéré", transform=ax.get_xaxis_transform(), ha="center")
+ax.text(2.30, 1.01, "sévère", transform=ax.get_xaxis_transform(), ha="left")
+ax.set_xlabel("Score Agitation")
+ax.set_ylabel("Épaisseur ajustée prédite (mm)")
+ax.set_title("Forme spline ajustée du lien mouvement-épaisseur")
+ax.legend(ncol=3, frameon=False)
+ax.grid(alpha=0.18)
+plt.tight_layout(pad=2.0)
+plt.show()''')
 
     md("""Lecture par strate de mouvement : où se situe l'écart au brut (interaction condition × niveau) et à quel niveau devient-il significatif.""")
 
@@ -365,13 +448,16 @@ for k in fit_int.params.index:
     niv = k.split("T.")[-1].rstrip("]")
     rows.append({"condition": cond, "niveau": niv, "coef (mm)": fit_int.params[k], "p": fit_int.pvalues[k]})
 tCbis_int = pd.DataFrame(rows).set_index(["condition", "niveau"])
+tCbis_int["p Holm"] = multipletests(tCbis_int["p"], method="holm")[1]
 
-sig = tCbis_int[tCbis_int["p"] < 0.05]
-analyse = (f"{len(sig)} interaction(s) condition x niveau sur {len(tCbis_int)} sont significatives (p<0.05) : "
+sig = tCbis_int[tCbis_int["p Holm"] < 0.05]
+analyse = (f"{len(sig)} interaction(s) condition × niveau sur {len(tCbis_int)} restent significatives après correction de Holm : "
            f"{', '.join(f'{c}/{n}' for c, n in sig.index) if len(sig) else 'aucune'}. Un coefficient négatif "
            f"signifie que l'écart au brut s'accentue à ce niveau de mouvement par rapport au niveau faible "
            f"(référence) ; positif, qu'il s'atténue ou s'inverse (sur-correction).")
-show(tCbis_int, "L'écart au brut dépend-il du niveau de mouvement (faible/léger/modéré/sévère) ?", analyse, "{:+.4f}")''')
+show(tCbis_int, "L'écart au brut dépend-il du niveau de mouvement (faible/léger/modéré/sévère) ?",
+     [analyse, "Les p-values de Holm contrôlent les comparaisons multiples entre conditions et niveaux."],
+     "{:+.4f}")''')
 
     md("""Comparaison appariée (Wilcoxon) au brut, séparément par niveau de mouvement.""")
 
@@ -393,11 +479,20 @@ for niv in ["faible", "leger", "modere", "severe"]:
     rows.append(rec)
 tCbis_strat = pd.DataFrame(rows).set_index("niveau")
 
-analyse = ("À chaque niveau, un écart (%) proche de 0 et non significatif (p≥0.05) indique que la condition ne se "
-           "distingue pas du brut à ce niveau de mouvement. Un écart négatif signifie que la condition amincit par "
-           "rapport au brut à ce niveau ; positif, qu'elle épaissit (sur-correction locale). Si l'écart croît avec "
-           "la sévérité, l'effet de la condition dépend du mouvement plutôt que d'être un simple offset constant.")
-show(tCbis_strat, "L'écart (%) au brut, par niveau de mouvement, est-il stable ou dépend-il de la sévérité ?", analyse, "{:+.2f}")''')
+p_cols = [c for c in tCbis_strat.columns if c.startswith("p ")]
+p_long = tCbis_strat[p_cols].stack()
+if len(p_long):
+    p_corr = multipletests(p_long.values, method="holm")[1]
+    for (idx, col), value in zip(p_long.index, p_corr):
+        tCbis_strat.loc[idx, col + " Holm"] = value
+
+analyse = [
+    "Un écart négatif signifie que la condition amincit par rapport au brut ; un écart positif indique un épaississement ou une sur-correction locale.",
+    "Si l'écart augmente avec la sévérité, l'effet dépend du mouvement plutôt que d'être un simple offset constant.",
+    "Les tests de Wilcoxon sont exploratoires et les colonnes « Holm » corrigent les comparaisons multiples."
+]
+show(tCbis_strat, "L'écart (%) au brut est-il stable ou dépend-il de la sévérité du mouvement ?",
+     analyse, "{:+.2f}")''')
 
     # ---------------------------------------------------------------- D. image
     md(r"""## D. L'image et les contours ressemblent-ils davantage à la référence ?
@@ -445,7 +540,7 @@ d_table = agg.reset_index().rename(columns={
     "clean_ssim_grad": "SSIM gradient vs run-01 preproc",
     "intra_ssim_grad": "SSIM gradient vs run-01 même condition",
 }).set_index(["condition", "run"])
-analyse = A_img + " " + A_grad + " " + A_intra
+analyse = [A_img, A_grad, A_intra]
 show(d_table, "La correction rapproche-t-elle l'image et ses contours du run-01 du même sujet ?",
      analyse, "{:.3f}")''')
 
@@ -479,11 +574,11 @@ RCONDS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
 for run, cons in [("run-03", "shaking (fort mouvement)"), ("run-02", "nodding (mouvement modéré)")]:
     t = (rec[rec["run"] == run].groupby("condition")[["mae_within", "mae_truth", "offset"]].mean().reindex(RCONDS))
     bt, bw = t.loc["brut", "mae_truth"], t.loc["brut", "mae_within"]
-    analyse = (f"Aucune condition ne descend sous l'erreur du brut à la référence opérationnelle ({bt:.3f} mm) : jdac {t.loc['jdac','mae_truth']:.3f}, "
-               f"nodenoise {t.loc['jdac_nodenoise','mae_truth']:.3f} s'en éloignent (à cause de l'offset). Net d'offset "
-               f"(mouvement restant), nodenoise empire le motif régional ({t.loc['jdac_nodenoise','mae_within']:.3f} > brut {bw:.3f}) ; "
-               f"seul preproc le réduit un peu ({t.loc['preproc','mae_within']:.3f}). L'épaisseur régionale du scan bougé ne se "
-               f"rapproche donc pas de la vraie valeur : les mesures ne suivent pas.")
+    analyse = [
+        f"Aucune condition ne descend sous l'erreur du brut à la référence opérationnelle ({bt:.3f} mm) : JDAC {t.loc['jdac','mae_truth']:.3f} mm, nodenoise {t.loc['jdac_nodenoise','mae_truth']:.3f} mm.",
+        f"Net d'offset, nodenoise augmente l'écart régional ({t.loc['jdac_nodenoise','mae_within']:.3f} contre {bw:.3f} mm en brut).",
+        f"Le preprocessing est le seul à réduire légèrement cet écart ({t.loc['preproc','mae_within']:.3f} mm)."
+    ]
     t.columns = ["écart résiduel intra-condition (mm)", "erreur à raw/run-01 (mm)", "distorsion de run-01 (mm)"]
     show(t, f"Scan {cons} : l'épaisseur régionale se rapproche-t-elle de la référence raw/run-01 ?", analyse, "{:.3f}")''')
 

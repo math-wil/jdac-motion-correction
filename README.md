@@ -61,7 +61,6 @@ FreeSurfer completion status for the rigid analysis:
 |       |-- phase2_PREPROC/          # N4 + rigid registration + SynthStrip
 |       |-- phase3_JDAC/             # JDAC inference, ablations, and FreeSurfer scripts
 |       |-- phase4_compare_3bras/    # Historical folder name; now the 5-condition comparison
-|       |-- phase5_fidelity/         # Locked fidelity, PMC, blinded QC, and BME-X benchmark
 |       |-- agitation/               # Agitation motion-score processing
 |       |-- utils/                   # Narval transfer and cluster notes
 |       `-- _archive_clinica/        # Archived Clinica-affine experiment
@@ -71,7 +70,6 @@ FreeSurfer completion status for the rigid analysis:
         |-- phase2_PREPROC/          # Preprocessing QC figures
         |-- phase3_JDAC/             # JDAC figures and GLM outputs
         |-- phase4_compare_3bras/    # Current 5-condition summaries plus image/recovery metrics
-        |-- phase5_fidelity/         # Manifests, provisional P1 checkpoint, and future locked outputs
         |-- agitation/               # Motion scores
         `-- _archive_clinica/        # Archived Clinica-affine results
 ```
@@ -82,7 +80,6 @@ Phase-level documentation:
 - `pipelines/ds004332/phase2_PREPROC/README.md`
 - `pipelines/ds004332/phase3_JDAC/README.md`
 - `pipelines/ds004332/phase4_compare_3bras/README.md`
-- `pipelines/ds004332/phase5_fidelity/README.md`
 
 ## External Data
 
@@ -271,14 +268,9 @@ The current conclusion is therefore:
 
 > None of the tested JDAC conditions restores cortical thickness to the subject's still-scan regional truth. The best visual or statistical decoupling does not yet translate into anatomically faithful FreeSurfer measurements.
 
-The post-JDAC benchmark is now implemented under `pipelines/ds004332/phase5_fidelity/`. It describes ICC as absolute agreement under deliberately induced motion rather than conventional test-retest reliability, adds the scanner PMC arm as a positive control, locks a blinded FreeSurfer QC sample, and permits only an 18-scan BME-X pilot before any full external comparison.
+The current next step remains within JDAC. The working hypothesis is that the anti-artifact residual is useful but applied too strongly. A small pilot will compare residual strengths `0.25`, `0.50`, and the current `1.00` on subjects spanning low, intermediate, and high motion. The pilot must preserve the still scan and improve regional fidelity before any expansion or retraining.
 
-The locally executable checkpoint uses the tracked subject-level **mean** regional MAE from Phase 4 because the processed regional derivative tables are absent from this workstation. JDAC is worse than preprocessing in the paired checkpoint for both moved runs:
-
-- nodding: median JDAC − preproc difference `+0.0859 mm`, bootstrap 95% CI `[+0.0730, +0.0970]`;
-- shaking: `+0.0754 mm`, bootstrap 95% CI `[+0.0602, +0.0868]`.
-
-This is explicitly provisional: the locked median-regional endpoint, ICC, CCC, regional mixed model, and FDR analysis still require the external regional derivative tables. It nevertheless supports the current stop rule: do not retrain JDAC now.
+PMC, blinded QC, BME-X, and a new model remain optional directions to discuss. They are not mandatory gates in the active workflow.
 
 ## Reproducing the Analysis
 
@@ -290,7 +282,7 @@ This repository is mainly an analysis record. To reproduce the current analysis 
 4. Run each phase in order, following the phase-specific README files.
 5. Use Narval SLURM scripts for FreeSurfer batch jobs where indicated.
 6. Run the phase 4 notebook or scripts to regenerate the A–E comparison tables.
-7. Follow `pipelines/ds004332/phase5_fidelity/README.md` to build the canonical regional table and execute the locked P1–P4 gates.
+7. Use `PLAN_REPRISE_JDAC_2026-07-15.md` for the current reduced-strength JDAC pilot.
 
 Before running on a new system, review absolute paths in scripts and update them to the local data layout.
 

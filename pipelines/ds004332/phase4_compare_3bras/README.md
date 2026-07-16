@@ -151,6 +151,6 @@ Le résultat cohérent actuel est :
 - les variantes sans débruiteur ne résolvent pas le problème : elles sur-corrigent et ne rapprochent pas l'épaisseur régionale de la vérité ;
 - aucune condition ne ramène actuellement l'épaisseur d'un scan bougé à sa vraie valeur régionale.
 
-La Phase 4 est désormais gelée : le notebook exécuté et les CSV A–E restent les sources de vérité. Les scripts historiques ne sont pas supprimés tant que la reproduction complète n'a pas été refaite avec les dérivés externes.
+La Phase 4 reste la source de vérité pour la comparaison à cinq conditions. Le notebook a été régénéré avec une présentation plus lisible et une section C-bis consacrée à la non-linéarité et aux strates de mouvement. Ses nouvelles sorties doivent être exécutées sur le poste disposant des dérivés externes.
 
-La suite est implémentée dans `../phase5_fidelity/`. Elle remplace l'ancien libellé « ICC test-retest » par **ICC(A,1) d'accord absolu sous mouvement induit**, ajoute la médiane de l'erreur régionale comme critère principal, le contrôle positif PMC, le QC FreeSurfer aveugle et un pilote BME-X verrouillé. Aucun réentraînement JDAC n'est lancé avant ces gates.
+La prochaine expérience proposée reste dans JDAC : réduire la force du résidu anti-artefact à `0.25` et `0.50` sur un petit pilote, puis juger simultanément la stabilité du run immobile, la fidélité régionale et la relation Agitation-épaisseur. PMC, QC aveugle et BME-X ne sont plus des étapes obligatoires. Le protocole courant est décrit dans `PLAN_REPRISE_JDAC_2026-07-15.md`.
