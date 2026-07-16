@@ -65,14 +65,9 @@ def common_slice_and_box(volumes):
 
 
 def panel(volume, k, box):
+    """Coupe recadrée, orientation FSLeyes : antérieur en haut, droite du patient à gauche (radiologique)."""
     r0, r1, c0, c1 = box
-    img = volume[r0:r1 + 1, c0:c1 + 1, k].T
-    m = img > 0
-    if m.any():
-        lo, hi = np.percentile(img[m], [1, 99.5])
-        img = np.clip((img - lo) / max(hi - lo, 1e-6), 0, 1)
-        img[~m] = 0
-    return img
+    return volume[r0:r1 + 1, c0:c1 + 1, k].T[:, ::-1]
 
 
 def main() -> None:
@@ -84,17 +79,23 @@ def main() -> None:
     k, box = common_slice_and_box(list(grid.values()))
 
     nrow, ncol = len(RUNS), len(CONDITIONS)
-    fig, axes = plt.subplots(nrow, ncol, figsize=(4.2 * ncol, 4.2 * nrow))
+    r0, r1, c0, c1 = box
+    # aspect d'AFFICHAGE (après .T) = hauteur/largeur = étendue A / étendue R
+    aspect = (c1 - c0) / (r1 - r0)
+    panel_w = 3.6
+    fig, axes = plt.subplots(nrow, ncol, figsize=(panel_w * ncol, panel_w * aspect * nrow))
     for r, (run, label, agitation) in enumerate(RUNS):
         for c, (cond, title, _) in enumerate(CONDITIONS):
-            axes[r, c].imshow(panel(grid[(run, cond)], k, box), cmap="gray", origin="lower")
+            vol = grid[(run, cond)]
+            axes[r, c].imshow(panel(vol, k, box), cmap="gray", origin="lower",
+                              vmin=0.0, vmax=float(vol.max()))   # rendu FSLeyes : 0 -> max
             axes[r, c].set_xticks([]); axes[r, c].set_yticks([])
             if r == 0:
                 axes[r, c].set_title(title, fontsize=13)
         axes[r, 0].set_ylabel(f"sub-19 {run}\n{label}\nAgitation {agitation:.2f}", fontsize=11)
 
-    fig.suptitle("Même cerveau, mouvement croissant : entrée preproc et variantes JDAC", fontsize=14)
-    fig.subplots_adjust(left=0.05, right=0.995, top=0.94, bottom=0.01, wspace=0.02, hspace=0.04)
+    # panneaux collés (aucun espace), marge à gauche pour les libellés de ligne
+    fig.subplots_adjust(left=0.055, right=0.999, top=0.965, bottom=0.005, wspace=0.0, hspace=0.0)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT, dpi=150)
     print(f"Figure -> {OUT}  (coupe z={k})")
