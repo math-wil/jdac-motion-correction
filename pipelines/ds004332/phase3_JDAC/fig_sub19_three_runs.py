@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Compare the three sub-19 runs across the four rigid image conditions.
+"""Compare les trois runs de sub-19 sur les quatre conditions d'image (rigide).
 
-Rows are the same brain with increasing instructed motion. Columns are the
-preprocessed JDAC input and the three JDAC outputs. All panels share the rigid
-grid and use the same axial slice fraction. Display intensities are normalized
-per panel only for visualization; quantitative comparisons remain in Phase 4.
+Lignes = même cerveau, mouvement croissant. Colonnes = entrée preproc puis les
+trois sorties JDAC. Toutes les images partagent la grille rigide.
+
+Réglages de rendu (montage type réunion) :
+- coupe axiale choisie sur l'ÉTENDUE du cerveau (pas sur la grille paddée), pour
+  tomber au milieu du cerveau et pas trop haut ;
+- recadrage sur la boîte englobante commune du cerveau (images resserrées) ;
+- panneaux grands, fenêtrage percentile par panneau.
+Les intensités affichées sont normalisées par panneau pour la visualisation ;
+les comparaisons quantitatives restent en Phase 4.
 """
 
 from pathlib import Path
@@ -29,17 +35,12 @@ RUNS = [
 CONDITIONS = [
     ("preproc", "entrée preproc", "preproc_rigid/{sid}/{sid}_brain.nii.gz"),
     ("jdac", "JDAC complet", "jdac_rigid/{sid}/{sid}_T1w_jdac.nii.gz"),
-    (
-        "antiartonly",
-        "anti-artefact 1×",
-        "jdac_rigid_antiartonly/{sid}/{sid}_T1w_jdac_antiartonly.nii.gz",
-    ),
-    (
-        "nodenoise",
-        "sans débruiteur 4×",
-        "jdac_rigid_nodenoise/{sid}/{sid}_T1w_jdac_nodenoise.nii.gz",
-    ),
+    ("antiartonly", "anti-artefact 1×", "jdac_rigid_antiartonly/{sid}/{sid}_T1w_jdac_antiartonly.nii.gz"),
+    ("nodenoise", "sans débruiteur 4×", "jdac_rigid_nodenoise/{sid}/{sid}_T1w_jdac_nodenoise.nii.gz"),
 ]
+
+Z_FRACTION = 0.50   # position de la coupe le long de l'étendue du cerveau
+MARGIN = 6          # voxels de marge autour du cerveau pour le recadrage
 
 
 def load(path: Path) -> np.ndarray:
@@ -48,40 +49,55 @@ def load(path: Path) -> np.ndarray:
     return nib.as_closest_canonical(nib.load(str(path))).get_fdata().astype(np.float32)
 
 
-def normalized_slice(volume: np.ndarray, fraction: float = 0.52) -> np.ndarray:
-    index = int(round(volume.shape[2] * fraction))
-    image = volume[:, :, index].T
-    mask = image > 0
-    if not mask.any():
-        return image
-    low, high = np.percentile(image[mask], [1, 99.5])
-    scaled = np.clip((image - low) / max(high - low, 1e-6), 0, 1)
-    scaled[~mask] = 0
-    return scaled
+def common_slice_and_box(volumes):
+    """Coupe axiale (milieu du cerveau) et boîte englobante 2D communes à tous les volumes."""
+    mask = np.zeros(volumes[0].shape, dtype=bool)
+    for v in volumes:
+        mask |= v > 0
+    zs = np.where(mask.any(axis=(0, 1)))[0]
+    k = int(round(zs.min() + Z_FRACTION * (zs.max() - zs.min())))
+    sl = mask[:, :, k]
+    rows = np.where(sl.any(axis=1))[0]
+    cols = np.where(sl.any(axis=0))[0]
+    r0, r1 = max(rows.min() - MARGIN, 0), min(rows.max() + MARGIN, sl.shape[0] - 1)
+    c0, c1 = max(cols.min() - MARGIN, 0), min(cols.max() + MARGIN, sl.shape[1] - 1)
+    return k, (r0, r1, c0, c1)
+
+
+def panel(volume, k, box):
+    r0, r1, c0, c1 = box
+    img = volume[r0:r1 + 1, c0:c1 + 1, k].T
+    m = img > 0
+    if m.any():
+        lo, hi = np.percentile(img[m], [1, 99.5])
+        img = np.clip((img - lo) / max(hi - lo, 1e-6), 0, 1)
+        img[~m] = 0
+    return img
 
 
 def main() -> None:
-    fig, axes = plt.subplots(len(RUNS), len(CONDITIONS), figsize=(15, 11))
-    for row, (run, label, agitation) in enumerate(RUNS):
+    grid = {}
+    for run, _, _ in RUNS:
         sid = f"sub-19_{run}"
-        for col, (_, title, template) in enumerate(CONDITIONS):
-            path = DERIV / template.format(sid=sid)
-            axes[row, col].imshow(normalized_slice(load(path)), cmap="gray", origin="lower")
-            axes[row, col].set_xticks([])
-            axes[row, col].set_yticks([])
-            if row == 0:
-                axes[row, col].set_title(title, fontsize=11)
-        axes[row, 0].set_ylabel(
-            f"sub-19 {run}\n{label}\nAgitation {agitation:.3f}", fontsize=10
-        )
-    fig.suptitle(
-        "Même cerveau, mouvement croissant : entrée et variantes JDAC",
-        fontsize=13,
-    )
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+        for cond, _, template in CONDITIONS:
+            grid[(run, cond)] = load(DERIV / template.format(sid=sid))
+    k, box = common_slice_and_box(list(grid.values()))
+
+    nrow, ncol = len(RUNS), len(CONDITIONS)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.2 * ncol, 4.2 * nrow))
+    for r, (run, label, agitation) in enumerate(RUNS):
+        for c, (cond, title, _) in enumerate(CONDITIONS):
+            axes[r, c].imshow(panel(grid[(run, cond)], k, box), cmap="gray", origin="lower")
+            axes[r, c].set_xticks([]); axes[r, c].set_yticks([])
+            if r == 0:
+                axes[r, c].set_title(title, fontsize=13)
+        axes[r, 0].set_ylabel(f"sub-19 {run}\n{label}\nAgitation {agitation:.2f}", fontsize=11)
+
+    fig.suptitle("Même cerveau, mouvement croissant : entrée preproc et variantes JDAC", fontsize=14)
+    fig.subplots_adjust(left=0.05, right=0.995, top=0.94, bottom=0.01, wspace=0.02, hspace=0.04)
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT, dpi=180, bbox_inches="tight")
-    print(f"Figure -> {OUT}")
+    fig.savefig(OUT, dpi=150)
+    print(f"Figure -> {OUT}  (coupe z={k})")
 
 
 if __name__ == "__main__":
