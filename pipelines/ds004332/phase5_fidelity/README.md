@@ -1,4 +1,4 @@
-﻿# Phase 5 — Volumes sous-corticaux et fidélité anatomique
+# Phase 5 — Volumes sous-corticaux et fidélité anatomique
 
 Cette phase analyse les volumes FreeSurfer de `aseg.stats` séparément de l'épaisseur corticale. Toutes les valeurs analysées sont en **mm³**.
 
@@ -12,10 +12,11 @@ Le `raw/run-01` est une référence opérationnelle, pas une vérité anatomique
 
 ## Fichiers
 
-- `extract_aseg_stats.py` : extrait toutes les structures et mesures globales en mm³; produit aussi la matrice de complétude.
-- `build_notebook_aseg.py` : génère `explore_aseg_rigide.ipynb`.
-- `inspect_central_structure.py` : compare la même coupe FreeSurfer avec une fenêtre d'intensité commune et les contours des thalamus/ventricules.
-- `explore_aseg_rigide.ipynb` : analyses appariées, récupération vers la référence et modèles à mesures répétées.
+- `build_notebook_aseg.py` : **source reproductible de l'analyse**. C'est ce fichier lisible qui est modifié lorsque les cellules, statistiques ou explications changent; il régénère ensuite le notebook.
+- `explore_aseg_rigide.ipynb` : notebook généré et exécuté sur le PC du labo. Il contient le code, les tableaux et les figures interactives.
+- `explore_aseg_rigide.html` : instantané exécuté avec toutes les sorties, consultable sans Jupyter.
+- `inspect_central_structure.py` : contrôle visuel optionnel qui charge les volumes FreeSurfer `T1.mgz` et `aseg.mgz`. Le notebook CSV ne peut pas remplacer cette vérification voxel par voxel.
+- `extract_aseg_stats.py` : outil de secours et de provenance pour reconstruire les tables depuis les `aseg.stats` individuels. Il n'est pas utilisé lorsque les cinq tables existent déjà.
 
 ## Tables utilisées sur le PC Linux du labo
 

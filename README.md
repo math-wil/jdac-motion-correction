@@ -270,9 +270,9 @@ The current conclusion is therefore:
 
 > None of the tested JDAC conditions restores cortical thickness to the subject's still-scan regional truth. The best visual or statistical decoupling does not yet translate into anatomically faithful FreeSurfer measurements.
 
-The immediate next step is the separate Phase 5 analysis of all FreeSurfer `aseg.stats` volumes. It tests whether the five conditions modify subcortical and global volumes on `run-01`, recover the subject-specific `raw/run-01` volumes on moved scans, or retain an association with Agitation.
+Phase 5 now provides the executed `aseg.stats` analysis. On the almost-still `run-01`, full JDAC shifts major FreeSurfer volumes despite there being little motion to correct: median CortexVol is about 14% lower, TotalGrayVol about 10.8% lower, CerebralWhiteMatterVol about 11% higher, and CSF about 10.2% higher than raw. Across moved scans, none of the tested conditions shows consistent structure-wise recovery toward the subject-specific `raw/run-01` reference. Agitation remains associated with many anatomical volumes after FDR correction.
 
-The reduced-residual JDAC pilot (`0.25` and `0.50`) remains a later candidate. It should only expand if it preserves both cortical thickness and `aseg` volumes on the still scan. PMC, blinded QC, BME-X, and a new model remain optional directions rather than mandatory gates.
+The reduced-strength pilot described in the former July 15 plan is no longer the active roadmap. The next decision is to verify the central thalamic observation and use the cortical and volumetric evidence to choose a defensible development baseline: JDAC modification or retraining, inclusion of clean images and an identity constraint, motion estimation as an input or auxiliary target, and anatomically sensitive losses. These are research options to compare, not approved experiments.
 
 ## Reproducing the Analysis
 
@@ -283,8 +283,8 @@ This repository is mainly an analysis record. To reproduce the current analysis 
 3. Install the MRI and Python dependencies in the `cortical-motion` environment.
 4. Run each phase in order, following the phase-specific README files.
 5. Use Narval SLURM scripts for FreeSurfer batch jobs where indicated.
-6. Run the phase 4 notebook or scripts to regenerate the A–E comparison tables.
-7. Use `PLAN_REPRISE_JDAC_2026-07-15.md` for the current reduced-strength JDAC pilot.
+6. Run the phase 4 notebook or scripts to regenerate the cortical A–E comparison.
+7. Run `pipelines/ds004332/phase5_fidelity/explore_aseg_rigide.ipynb` for the volumetric analysis; the committed HTML is the executed snapshot.
 
 Before running on a new system, review absolute paths in scripts and update them to the local data layout.
 
