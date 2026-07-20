@@ -23,8 +23,13 @@ FNAME = "explore_epaisseur_rigide.ipynb"
 def build():
     nb = nbf.v4.new_notebook()
     cells = []
-    def md(t): cells.append(nbf.v4.new_markdown_cell(t))
-    def code(t): cells.append(nbf.v4.new_code_cell(t))
+    section = {"include": True}
+    def md(t):
+        if section["include"]:
+            cells.append(nbf.v4.new_markdown_cell(t))
+    def code(t):
+        if section["include"]:
+            cells.append(nbf.v4.new_code_cell(t))
 
     md("""# Épaisseur corticale après JDAC et ses variantes (ds004332, pipeline rigide)
 
@@ -209,6 +214,13 @@ $$\Delta_{s,r,c}=\bar T_{s,r,c}-\bar T_{s,run01,brut}$$
 
 Cette figure remplace les 22 petits panneaux. Elle montre la distribution entre sujets et permet de voir simultanément le déplacement du run-01 et celui des runs bougés.""")
 
+    md("""**Lecture attendue du boxplot.** Les variantes sans débruiteur ont deux effets successifs :
+
+- sur le `run-01`, elles déplacent les boîtes sous zéro : elles **diminuent l'épaisseur mesurée alors qu'il n'y a presque aucun mouvement à corriger** ;
+- lorsque le mouvement augmente, surtout après quatre passages, les boîtes remontent : l'épaisseur augmente avec Agitation et le lien attendu finit par s'inverser.
+
+Le boxplot démontre donc un **offset d'amincissement**, puis une **sur-correction dépendante du mouvement**. Il ne démontre pas à lui seul que l'anatomie régionale est restaurée : des erreurs positives et négatives peuvent s'annuler dans la moyenne globale.""")
+
     code('''raw_still = (g[(g["condition"] == "brut") & (g["consigne"] == "still")]
              [["subject", "thickness"]].rename(columns={"thickness": "raw_run01"}))
 rel = g.merge(raw_still, on="subject", how="inner")
@@ -343,6 +355,9 @@ show(tC, "Après la condition, ajouter le score de mouvement améliore-t-il enco
       "IC95 bas": "{:+.4f}", "IC95 haut": "{:+.4f}",
       "p ajout Agitation (M1 vs M0)": "{:.2g}", "sens": "{}"})''')
 
+    # C-bis reste dans l'historique du générateur, mais n'est plus inclus dans
+    # le notebook principal : trop de tests exploratoires pour la question centrale.
+    section["include"] = False
     # ---------------------------------------------------------------- C-bis. non-linéaire + strates
     md("""## C-bis. Le lien mouvement-épaisseur change-t-il selon la sévérité ?
 
@@ -494,6 +509,7 @@ analyse = [
 show(tCbis_strat, "L'écart (%) au brut est-il stable ou dépend-il de la sévérité du mouvement ?",
      analyse, "{:+.2f}")''')
 
+    section["include"] = True
     # ---------------------------------------------------------------- D. image
     md(r"""## D. L'image et les contours ressemblent-ils davantage à la référence ?
 

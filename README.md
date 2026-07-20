@@ -61,6 +61,7 @@ FreeSurfer completion status for the rigid analysis:
 |       |-- phase2_PREPROC/          # N4 + rigid registration + SynthStrip
 |       |-- phase3_JDAC/             # JDAC inference, ablations, and FreeSurfer scripts
 |       |-- phase4_compare_3bras/    # Historical folder name; now the 5-condition comparison
+|       |-- phase5_fidelity/         # aseg.stats volumes and central-structure fidelity
 |       |-- agitation/               # Agitation motion-score processing
 |       |-- utils/                   # Narval transfer and cluster notes
 |       `-- _archive_clinica/        # Archived Clinica-affine experiment
@@ -80,6 +81,7 @@ Phase-level documentation:
 - `pipelines/ds004332/phase2_PREPROC/README.md`
 - `pipelines/ds004332/phase3_JDAC/README.md`
 - `pipelines/ds004332/phase4_compare_3bras/README.md`
+- `pipelines/ds004332/phase5_fidelity/README.md`
 
 ## External Data
 
@@ -268,9 +270,9 @@ The current conclusion is therefore:
 
 > None of the tested JDAC conditions restores cortical thickness to the subject's still-scan regional truth. The best visual or statistical decoupling does not yet translate into anatomically faithful FreeSurfer measurements.
 
-The current next step remains within JDAC. The working hypothesis is that the anti-artifact residual is useful but applied too strongly. A small pilot will compare residual strengths `0.25`, `0.50`, and the current `1.00` on subjects spanning low, intermediate, and high motion. The pilot must preserve the still scan and improve regional fidelity before any expansion or retraining.
+The immediate next step is the separate Phase 5 analysis of all FreeSurfer `aseg.stats` volumes. It tests whether the five conditions modify subcortical and global volumes on `run-01`, recover the subject-specific `raw/run-01` volumes on moved scans, or retain an association with Agitation.
 
-PMC, blinded QC, BME-X, and a new model remain optional directions to discuss. They are not mandatory gates in the active workflow.
+The reduced-residual JDAC pilot (`0.25` and `0.50`) remains a later candidate. It should only expand if it preserves both cortical thickness and `aseg` volumes on the still scan. PMC, blinded QC, BME-X, and a new model remain optional directions rather than mandatory gates.
 
 ## Reproducing the Analysis
 

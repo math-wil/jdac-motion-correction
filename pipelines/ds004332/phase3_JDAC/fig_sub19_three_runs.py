@@ -77,6 +77,10 @@ def main() -> None:
         for cond, _, template in CONDITIONS:
             grid[(run, cond)] = load(DERIV / template.format(sid=sid))
     k, box = common_slice_and_box(list(grid.values()))
+    # Une fenêtre unique est indispensable : avec un maximum différent par
+    # panneau, une structure peut sembler disparaître uniquement à cause du rendu.
+    positive = np.concatenate([v[v > 0][::100] for v in grid.values() if np.any(v > 0)])
+    shared_vmax = float(np.percentile(positive, 99.5))
 
     nrow, ncol = len(RUNS), len(CONDITIONS)
     r0, r1, c0, c1 = box
@@ -88,7 +92,7 @@ def main() -> None:
         for c, (cond, title, _) in enumerate(CONDITIONS):
             vol = grid[(run, cond)]
             axes[r, c].imshow(panel(vol, k, box), cmap="gray", origin="lower",
-                              vmin=0.0, vmax=float(vol.max()))   # rendu FSLeyes : 0 -> max
+                              vmin=0.0, vmax=shared_vmax)
             axes[r, c].set_xticks([]); axes[r, c].set_yticks([])
             if r == 0:
                 axes[r, c].set_title(title, fontsize=13)
@@ -98,7 +102,7 @@ def main() -> None:
     fig.subplots_adjust(left=0.055, right=0.999, top=0.965, bottom=0.005, wspace=0.0, hspace=0.0)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT, dpi=150)
-    print(f"Figure -> {OUT}  (coupe z={k})")
+    print(f"Figure -> {OUT}  (coupe z={k}, fenêtre commune 0..{shared_vmax:.4g})")
 
 
 if __name__ == "__main__":

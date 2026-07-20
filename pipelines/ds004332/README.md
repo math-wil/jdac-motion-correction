@@ -8,6 +8,7 @@ Code du pipeline d'évaluation de JDAC sur ds004332, organisé par phase. Chaque
 | `phase2_PREPROC/` | prétraitement N4 + recalage rigide + SynthStrip, puis recon-all (bras PREPROC). |
 | `phase3_JDAC/` | JDAC sur cerveaux prétraités, puis recon-all (bras JDAC). |
 | `phase4_compare_3bras/` | comparaison rigide actuelle à 5 conditions : brut, preproc, jdac, antiartonly, nodenoise. Le nom du dossier est historique. |
+| `phase5_fidelity/` | volumes sous-corticaux `aseg.stats`, fidélité à `raw/run-01` et vérification anatomique centrale. |
 | `agitation/` | calcul du score de mouvement Agitation (covariable des GLM). |
 | `utils/` | transfert vers Narval, guide d'exécution sur le cluster. |
 

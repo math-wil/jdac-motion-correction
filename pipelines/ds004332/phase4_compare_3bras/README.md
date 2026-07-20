@@ -62,7 +62,7 @@ Images pour les métriques D :
 
 | Script | Rôle |
 |---|---|
-| `build_notebook.py` | Génère le notebook d'analyse. Contient la section non-linéaire C-bis (quadratique, splines, par strate) ; régénérer et exécuter le notebook pour en produire les résultats. |
+| `build_notebook.py` | Génère le notebook cortical simplifié A–E. La section exploratoire C-bis n'est plus incluse. |
 | `compare_conditions.py` | Version CLI pour les tableaux A/C et analyses par strates. Nécessite les CSV d'épaisseur dérivés locaux. |
 | `compute_image_metrics.py` | Calcule les métriques image du bloc D et écrit `image_metrics.csv`. Nécessite les NIfTI dérivés locaux. |
 | `compute_recovery.py` | Calcule la récupération régionale du bloc E et écrit `recovery_metrics.csv`. Nécessite les CSV d'épaisseur dérivés locaux. |
@@ -151,6 +151,6 @@ Le résultat cohérent actuel est :
 - les variantes sans débruiteur ne résolvent pas le problème : elles sur-corrigent et ne rapprochent pas l'épaisseur régionale de la vérité ;
 - aucune condition ne ramène actuellement l'épaisseur d'un scan bougé à sa vraie valeur régionale.
 
-La Phase 4 reste la source de vérité pour la comparaison à cinq conditions. Le notebook a été régénéré avec une présentation plus lisible et une section C-bis consacrée à la non-linéarité et aux strates de mouvement. Ses nouvelles sorties doivent être exécutées sur le poste disposant des dérivés externes.
+La Phase 4 reste la source de vérité pour l'épaisseur corticale et les métriques image des cinq conditions. Le notebook a été simplifié : C-bis et ses tests par strates ont été retirés; le boxplot explicite maintenant l'amincissement initial puis la sur-correction des variantes.
 
-La prochaine expérience proposée reste dans JDAC : réduire la force du résidu anti-artefact à `0.25` et `0.50` sur un petit pilote, puis juger simultanément la stabilité du run immobile, la fidélité régionale et la relation Agitation-épaisseur. PMC, QC aveugle et BME-X ne sont plus des étapes obligatoires. Le protocole courant est décrit dans `PLAN_REPRISE_JDAC_2026-07-15.md`.
+La prochaine analyse est la Phase 5 dédiée aux volumes `aseg.stats`. Le pilote JDAC à force `0.25`/`0.50` reste secondaire et ne sera développé qu'après vérification de la stabilité corticale et sous-corticale du run immobile.
