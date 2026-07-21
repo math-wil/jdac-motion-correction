@@ -270,9 +270,9 @@ The current conclusion is therefore:
 
 > None of the tested JDAC conditions restores cortical thickness to the subject's still-scan regional truth. The best visual or statistical decoupling does not yet translate into anatomically faithful FreeSurfer measurements.
 
-Phase 5 now provides the executed `aseg.stats` analysis. On the almost-still `run-01`, full JDAC shifts major FreeSurfer volumes despite there being little motion to correct: median CortexVol is about 14% lower, TotalGrayVol about 10.8% lower, CerebralWhiteMatterVol about 11% higher, and CSF about 10.2% higher than raw. Across moved scans, none of the tested conditions shows consistent structure-wise recovery toward the subject-specific `raw/run-01` reference. Agitation remains associated with many anatomical volumes after FDR correction.
+Phase 5 has been redesigned around two direct tests: identity on the almost-still run-01, and added regional fidelity relative to preproc on moved runs. The previous exploratory HTML and per-structure significance counts are no longer authoritative. The minimal notebook must now be executed on the laboratory PC before a final volumetric conclusion is reported.
 
-The reduced-strength pilot described in the former July 15 plan is no longer the active roadmap. The next decision is to verify the central thalamic observation and use the cortical and volumetric evidence to choose a defensible development baseline: JDAC modification or retraining, inclusion of clean images and an identity constraint, motion estimation as an input or auxiliary target, and anatomically sensitive losses. These are research options to compare, not approved experiments.
+The next model-development decision will use this direct preproc comparison together with the established cortical results. Options such as clean-image identity training, motion estimation, anatomically sensitive losses, or a different baseline remain research hypotheses rather than approved experiments.
 
 ## Reproducing the Analysis
 
