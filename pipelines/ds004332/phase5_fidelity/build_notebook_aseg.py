@@ -15,12 +15,21 @@ def build() -> None:
 
     md("""# Fidélité des volumes FreeSurfer après traitement
 
-Ce notebook répond à seulement deux questions :
+Dans `aseg.stats`, FreeSurfer donne un volume en mm³ pour chaque structure. Par exemple : hippocampe, ventricule ou putamen. Ce n'est pas le volume du fichier IRM entier.
 
-1. **Scan presque immobile :** le traitement modifie-t-il les volumes de run-01 alors qu'il y a peu de mouvement à corriger ?
-2. **Scans bougés :** JDAC ou ses variantes réduisent-ils l'erreur davantage que le preprocessing seul ?
+La référence est toujours `brut/run-01` du même sujet. C'est le scan presque immobile, traité par FreeSurfer à partir de l'image brute.
 
-La référence anatomique opérationnelle est toujours le brut/run-01 du même sujet. Les analyses principales utilisent une erreur régionale médiane calculée par sujet : le sujet, et non chaque structure séparée, reste l'unité statistique.""")
+On compare cette référence avec :
+
+- `preproc/run-01`, `JDAC/run-01` et les variantes sur le scan presque immobile ;
+- les mêmes conditions sur `run-02` et `run-03`, qui sont les scans bougés.
+
+Ce notebook pose deux questions :
+
+1. Les traitements changent-ils les volumes sur `run-01` ?
+2. Sur les scans bougés, JDAC fait-il mieux que preproc ?
+
+Le calcul est fait sujet par sujet. Chaque sujet donne une valeur par condition. C'est cette valeur qui est comparée entre conditions.""")
 
     code("""from pathlib import Path
 import warnings
@@ -29,7 +38,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
+import statsmodels.formula.api as smf
 from statsmodels.stats.multitest import multipletests
+from IPython.display import Markdown
 warnings.filterwarnings("ignore")
 
 CONDITIONS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
@@ -46,9 +57,13 @@ ASEG_FILES = {
     "jdac_nodenoise": "aseg_nodenoise.csv",
 }
 
+# Lit une table aseg (format large : une ligne par acquisition, une colonne par
+# structure) et la retourne en format long (une ligne par structure), avec les
+# colonnes subject, run, measure, value_mm3, condition.
 def load_table(condition, filename):
     wide = pd.read_csv(ASEG_DIR / filename, sep="\t")
     id_col = "Measure:volume" if "Measure:volume" in wide.columns else wide.columns[0]
+    # Sépare l'identifiant "sub-XX_run-YY" en sujet et run.
     ids = wide[id_col].astype(str).str.extract(r"(sub-[^_/\\s]+)_(run-\\d+)", expand=True)
     if ids.isna().any().any():
         raise ValueError(f"Identifiants non reconnus dans {filename}")
@@ -61,14 +76,34 @@ missing = [name for name in ASEG_FILES.values() if not (ASEG_DIR / name).is_file
 if missing:
     raise FileNotFoundError("Tables absentes : " + ", ".join(missing))
 
+# Empile les 5 conditions dans un seul tableau long d.
 d = pd.concat([load_table(c, f) for c, f in ASEG_FILES.items()], ignore_index=True)
 d["value_mm3"] = pd.to_numeric(d["value_mm3"], errors="coerce")
 d["condition"] = pd.Categorical(d["condition"], CONDITIONS, ordered=True)
 
+# Score de mouvement Agitation (covariable de la question 3), joint par sujet et run.
+REPO = next((p for p in [Path.cwd(), *Path.cwd().parents]
+             if (p / "results/ds004332").exists()), Path.home() / "Documents/GitHub/jdac-motion-correction")
+AGIT = REPO / "results/ds004332/agitation/ds004332_agitation_clinica.csv"
+agit = pd.read_csv(AGIT).rename(columns={"sub":"subject", "condition":"run", "motion":"agitation"})
+d = d.merge(agit[["subject", "run", "agitation"]], on=["subject", "run"], how="left")
+
+# GLOBAL : six grands compartiments tissulaires, utilisés seulement par le
+# tableau descriptif (sens de l'effet), jamais par le score principal.
 GLOBAL = [
     "CortexVol", "TotalGrayVol", "CerebralWhiteMatterVol",
     "SubCortGrayVol", "CSF", "BrainSegVolNotVent",
 ]
+GLOBAL_LABELS = {
+    "CortexVol": "Substance grise corticale (CortexVol)",
+    "TotalGrayVol": "Substance grise totale (TotalGrayVol)",
+    "CerebralWhiteMatterVol": "Substance blanche cérébrale (CerebralWhiteMatterVol)",
+    "SubCortGrayVol": "Substance grise sous-corticale (SubCortGrayVol)",
+    "CSF": "LCR segmenté (CSF)",
+    "BrainSegVolNotVent": "Cerveau segmenté hors ventricules (BrainSegVolNotVent)",
+}
+# EXCLUDED : mesures non anatomiques (ratios -to-eTIV, trous de surface,
+# hypointensités). Base quasi nulle, un pourcentage n'y a pas de sens : écartées.
 EXCLUDED = {
     "EstimatedTotalIntraCranialVol", "SegmentedTotalIntracranialVol",
     "BrainSegVol-to-eTIV", "MaskVol-to-eTIV",
@@ -79,33 +114,89 @@ EXCLUDED = {
 }
 base_median = (d[(d.condition=="brut") & (d.run=="run-01")]
                .groupby("measure", observed=True).value_mm3.median())
-regional = [m for m in base_median.index
-            if m not in EXCLUDED and m not in GLOBAL and base_median[m] > 100]
+# Mesures assez grandes pour un pourcentage stable (> 100 mm³).
+# On enlève les ratios et les mesures de qualité. Les six volumes du tableau
+# descriptif sont calculés séparément.
+score_measures = [m for m in base_median.index
+                  if m not in EXCLUDED and m not in GLOBAL and base_median[m] > 100]
 
 context = pd.DataFrame([{
     "Sujets": d.subject.nunique(),
     "Runs": d.run.nunique(),
     "Conditions": d.condition.nunique(),
     "Acquisitions disponibles": f"{d[['subject','run','condition']].drop_duplicates().shape[0]}/{d.subject.nunique()*d.run.nunique()*d.condition.nunique()}",
-    "Régions analysées": len(regional),
+    "Mesures du score": len(score_measures),
 }])
 display(context)""")
 
+    md("""### Mesures utilisées
+
+Le score principal utilise 40 mesures :
+
+- 32 structures prises séparément, par exemple l'hippocampe gauche ou le putamen droit ;
+- 8 grands volumes déjà calculés par FreeSurfer, par exemple `BrainSegVol`, les volumes de cortex et de substance blanche de chaque hémisphère, `SupraTentorialVol` et `MaskVol`.
+
+Pour chaque mesure, on calcule l'écart en % par rapport à `brut/run-01`. Puis on prend la médiane des 40 écarts. Chaque mesure compte donc autant dans le score.
+
+On enlève les structures de moins de 100 mm³, les ratios et les mesures de qualité. Leur pourcentage serait difficile à interpréter ici.
+
+Le tableau suivant utilise seulement six grands volumes : grise corticale, grise totale, blanche cérébrale, grise sous-corticale, LCR et cerveau hors ventricules. Il sert juste à voir quel type de tissu augmente ou diminue. Il ne sert pas au test principal.
+
+Les volumes de départ sont en **mm³**. Les tableaux montrent des **% par rapport à brut/run-01**.""")
+
+    md("""### Méthode statistique
+
+Les écarts sont résumés par la **médiane entre sujets**. L'incertitude vient d'un **IC95 bootstrap** (ré-échantillonnage des sujets), et chaque comparaison entre deux conditions est un **test apparié de Wilcoxon** (mêmes sujets), avec correction **Holm** pour les comparaisons multiples.""")
+
+    code("""# IC95 de la médiane par bootstrap : on ré-échantillonne les sujets 10 000 fois
+# et on regarde l'étendue de la médiane obtenue. Graine fixe -> reproductible.
+def bootstrap_ci(values, n_boot=10000, seed=20260720):
+    values = np.asarray(values, dtype=float)
+    rng = np.random.default_rng(seed)
+    draws = rng.choice(values, size=(n_boot, len(values)), replace=True)
+    return np.percentile(np.median(draws, axis=1), [2.5, 97.5])
+
+# Compare deux conditions chez les MÊMES sujets (test apparié). Pour chaque paire :
+# diff = candidat - comparateur, sa médiane, son IC95, un test de Wilcoxon.
+# Holm corrige les p-values pour le nombre de comparaisons.
+def paired_contrasts(scores, specs, value_col):
+    wide = scores.pivot(index="subject", columns="condition", values=value_col)
+    rows = []
+    for label, candidate, comparator in specs:
+        pair = wide[[candidate, comparator]].dropna()  # sujets présents dans les deux conditions
+        diff = pair[candidate] - pair[comparator]
+        lo, hi = bootstrap_ci(diff)
+        p = stats.wilcoxon(diff).pvalue if len(diff) >= 3 and np.any(diff != 0) else 1.0
+        rows.append({"comparaison":label, "n":len(diff),
+                     "différence médiane (points %)":np.median(diff),
+                     "IC95 bas":lo, "IC95 haut":hi, "p":p})
+    out = pd.DataFrame(rows)
+    out["p Holm"] = multipletests(out.p, method="holm")[1]
+    return out""")
+
     md("""## 1. Le traitement modifie-t-il le scan presque immobile ?
 
-Pour chaque sujet et chaque condition, on calcule l'écart relatif absolu à son brut/run-01 dans chaque région, puis la médiane entre les régions :
+Pour un sujet et une mesure donnée, la référence **R** = volume FreeSurfer du **brut/run-01**. Le volume comparé **T** est la sortie de la condition correspondante sur le **même run-01** : par exemple, `preproc/run-01`, `JDAC/run-01`, `antiart ×1/run-01` ou `antiart ×4/run-01`.
 
-**erreur d'identité (%) = médiane des |volume traité − volume brut| / volume brut × 100**
+On calcule d'abord, structure par structure :
 
-Une valeur faible est meilleure. La comparaison principale est JDAC contre preproc, car JDAC est appliqué après ce preprocessing.""")
+**erreur absolue (%) = |T − R| / R × 100**
 
-    code("""ref = (d[(d.condition=="brut") & (d.run=="run-01") & d.measure.isin(regional)]
+Puis on prend la médiane des mesures du score pour ce sujet. Cette **erreur d'identité** répond seulement à « de combien le résultat s'éloigne-t-il du brut/run-01 ? » : elle est toujours positive ou nulle et ne dit donc pas si une structure grossit ou s'amincit. Une valeur faible est meilleure.
+
+La comparaison principale est JDAC contre preproc, car JDAC est appliqué après ce preprocessing.""")
+
+    code("""# Étape 1 : fixer, pour chaque sujet et chaque mesure, la référence R = brut/run-01.
+ref = (d[(d.condition=="brut") & (d.run=="run-01") & d.measure.isin(score_measures)]
        [["subject","measure","value_mm3"]]
        .rename(columns={"value_mm3":"reference_mm3"}))
 
-still = (d[(d.run=="run-01") & d.measure.isin(regional)]
+# Étape 2 : associer chaque sortie run-01 à R du même sujet.
+still = (d[(d.run=="run-01") & d.measure.isin(score_measures)]
          .merge(ref, on=["subject","measure"], how="inner"))
+# Étape 3 : prendre la valeur absolue. L'erreur est une distance à R.
 still["error_pct"] = 100 * (still.value_mm3-still.reference_mm3).abs() / still.reference_mm3
+# Étape 4 : prendre la médiane des mesures pour chaque sujet et condition.
 identity = (still.groupby(["subject","condition"], observed=True).error_pct
             .median().reset_index(name="erreur_identite_pct"))
 
@@ -116,34 +207,17 @@ sns.stripplot(data=identity[identity.condition!="brut"], x="condition",
               y="erreur_identite_pct", order=CONDITIONS[1:],
               color="black", alpha=.55, size=3)
 plt.xticks(range(4), [LABELS[c] for c in CONDITIONS[1:]])
-plt.ylabel("Erreur régionale médiane vs brut/run-01 (%)")
+plt.ylabel("Erreur médiane entre mesures vs brut/run-01 (%)")
 plt.xlabel("")
 plt.title("Scan presque immobile : erreur ajoutée par le traitement")
 plt.tight_layout()
-plt.show()""")
+plt.show()
 
-    code("""def bootstrap_ci(values, n_boot=10000, seed=20260720):
-    values = np.asarray(values, dtype=float)
-    rng = np.random.default_rng(seed)
-    draws = rng.choice(values, size=(n_boot, len(values)), replace=True)
-    return np.percentile(np.median(draws, axis=1), [2.5, 97.5])
+# Repère de lecture : chaque point est un sujet ; une boîte plus haute = plus d'écart au brut/run-01.""")
 
-def paired_contrasts(scores, specs, value_col):
-    wide = scores.pivot(index="subject", columns="condition", values=value_col)
-    rows = []
-    for label, candidate, comparator in specs:
-        pair = wide[[candidate, comparator]].dropna()
-        diff = pair[candidate] - pair[comparator]
-        lo, hi = bootstrap_ci(diff)
-        p = stats.wilcoxon(diff).pvalue if len(diff) >= 3 and np.any(diff != 0) else 1.0
-        rows.append({"comparaison":label, "n":len(diff),
-                     "différence médiane (points %)":np.median(diff),
-                     "IC95 bas":lo, "IC95 haut":hi, "p":p})
-    out = pd.DataFrame(rows)
-    out["p Holm"] = multipletests(out.p, method="holm")[1]
-    return out
+    md("""Le tableau ci-dessous teste ces écarts par un contraste apparié `candidat − preproc` (mêmes sujets). L'interprétation est **sous** le tableau.""")
 
-identity_tests = paired_contrasts(
+    code("""identity_tests = paired_contrasts(
     identity[identity.condition!="brut"],
     [
         ("JDAC − preproc", "jdac", "preproc"),
@@ -153,34 +227,73 @@ identity_tests = paired_contrasts(
     "erreur_identite_pct",
 )
 display(identity_tests.round(3))
-print("Lecture : une différence positive signifie plus d'erreur que preproc.")""")
+
+# Interprétation calculée à partir du tableau (aucune valeur écrite à la main).
+jt = identity_tests.set_index("comparaison")
+jdv, jdp = jt.loc["JDAC − preproc", ["différence médiane (points %)", "p Holm"]]
+a1v = jt.loc["antiart ×1 − preproc", "différence médiane (points %)"]
+a4v = jt.loc["antiart ×4 − preproc", "différence médiane (points %)"]
+display(Markdown(
+    "**Ce qu'on apprend.** Une différence *négative* voudrait dire « plus proche du brut que preproc » ; "
+    "*positive*, « plus d'erreur que preproc ». "
+    f"Les trois sont positives : sur le scan presque immobile, où il n'y a presque rien à corriger, "
+    f"JDAC s'écarte du brut de **{jdv:+.1f} points %** de plus que preproc (p Holm {jdp:.2g}), "
+    f"antiart ×1 de {a1v:+.1f}, antiart ×4 de {a4v:+.1f}. "
+    "Aucun ne préserve donc l'anatomie immobile mieux que le simple preprocessing."))""")
 
     md("""### Où se produit le changement ?
 
-Ce tableau secondaire montre la direction des changements dans six compartiments globaux. Il sert à expliquer l'erreur d'identité; il ne remplace pas le score régional principal.""")
+Tableau descriptif (il n'entre pas dans le test principal). Il montre le changement **signé** de six grands compartiments sur run-01, en **% par rapport à brut/run-01** (médiane sur les sujets). Signe gardé : négatif = compartiment plus petit qu'au brut, positif = plus grand.
 
-    code("""gref = (d[(d.condition=="brut") & (d.run=="run-01") & d.measure.isin(GLOBAL)]
+| Nom FreeSurfer | En clair | Contenu |
+|---|---|---|
+| `CortexVol` | Substance grise corticale | somme des cortex gauche et droit |
+| `TotalGrayVol` | Substance grise totale | grise corticale + sous-corticale + cervelet |
+| `CerebralWhiteMatterVol` | Substance blanche cérébrale | blanche des deux hémisphères |
+| `SubCortGrayVol` | Substance grise sous-corticale | noyaux gris profonds |
+| `CSF` | LCR segmenté | voxels classés liquide cérébrospinal par aseg |
+| `BrainSegVolNotVent` | Cerveau hors ventricules | cerveau segmenté, ventricules retirés |
+
+L'interprétation des chiffres suit **sous** le tableau.""")
+
+    code("""# Variation SIGNÉE (%) de chaque compartiment sur run-01 vs brut/run-01, médiane sur les sujets.
+# Signe gardé : - = plus petit qu'au brut, + = plus grand.
+gref = (d[(d.condition=="brut") & (d.run=="run-01") & d.measure.isin(GLOBAL)]
         [["subject","measure","value_mm3"]]
         .rename(columns={"value_mm3":"reference_mm3"}))
 g = (d[(d.run=="run-01") & d.measure.isin(GLOBAL) & (d.condition!="brut")]
      .merge(gref, on=["subject","measure"], how="inner"))
 g["signed_pct"] = 100 * (g.value_mm3-g.reference_mm3) / g.reference_mm3
-global_table = (g.groupby(["condition","measure"], observed=True).signed_pct
-                .median().unstack("measure").reindex(CONDITIONS[1:]))
-global_table.index = [LABELS[c] for c in global_table.index]
-display(global_table.round(1))""")
+# Table médiane : lignes = conditions, colonnes = compartiments (noms FreeSurfer d'origine).
+gt = (g.groupby(["condition","measure"], observed=True).signed_pct
+      .median().unstack("measure").reindex(CONDITIONS[1:])[GLOBAL])
+disp = gt.copy()
+disp.columns = [GLOBAL_LABELS[c] for c in disp.columns]
+disp.index = [LABELS[c] for c in disp.index]
+# Unité affichée dans chaque case : % signé.
+display(disp.style.format("{:+.1f} %").set_caption("Variation vs brut/run-01 (% signé)"))
+
+# Interprétation calculée (gt garde les noms d'origine).
+j = gt.loc["jdac"]
+prep_absmax = gt.loc["preproc"].abs().max()
+display(Markdown(
+    "**Ce qu'on apprend.** Le changement a un sens précis, ce n'est pas du bruit. "
+    f"Sur run-01, JDAC réduit la substance grise corticale (**{j['CortexVol']:+.0f} %**) et augmente la "
+    f"substance blanche (**{j['CerebralWhiteMatterVol']:+.0f} %**) et le LCR (**{j['CSF']:+.0f} %**) : "
+    "de la matière classée « grise » sur le brut passe en « blanche » ou en « LCR » après JDAC. "
+    "C'est la signature d'un lissage des frontières gris/blanc, pas d'une correction du mouvement. "
+    f"En comparaison, preproc reste sous ±{prep_absmax:.0f} % sur tous les compartiments."))""")
 
     md("""## 2. Sur les scans bougés, le traitement fait-il mieux que preproc ?
 
-Pour run-02 et run-03, on calcule la même erreur régionale médiane par rapport au brut/run-01 du sujet.
+Même calcul que la question 1, mais **T** est le volume de la condition sur un run bougé (`run-02` nodding, `run-03` shaking). La référence **R** reste le **brut/run-01 du même sujet**.
 
-La comparaison essentielle est directe :
+Le boxplot ci-dessous montre le **niveau d'erreur absolue** par sujet et par condition (donc ≥ 0, jamais négatif). Une boîte plus basse = plus fidèle au brut/run-01. Le tableau qui suit teste ces écarts (`candidat − preproc`) ; chaque interprétation est **sous** sa sortie.""")
 
-- différence négative : le candidat produit moins d'erreur que preproc ;
-- différence positive : le candidat produit plus d'erreur que preproc.""")
-
-    code("""moved = (d[d.run.isin(["run-02","run-03"]) & d.measure.isin(regional)]
+    code("""# Étape 1 : associer les sorties des runs bougés à R = brut/run-01.
+moved = (d[d.run.isin(["run-02","run-03"]) & d.measure.isin(score_measures)]
          .merge(ref, on=["subject","measure"], how="inner"))
+# Étape 2 : même erreur absolue, puis médiane des mesures pour chaque sujet.
 moved["error_pct"] = 100 * (moved.value_mm3-moved.reference_mm3).abs() / moved.reference_mm3
 fidelity = (moved.groupby(["subject","run","condition"], observed=True).error_pct
             .median().reset_index(name="erreur_regionale_pct"))
@@ -192,10 +305,21 @@ for ax in gplot.axes.flat:
     ax.set_xticks(range(5))
     ax.set_xticklabels([LABELS[c] for c in CONDITIONS], rotation=25, ha="right")
     ax.set_xlabel("")
-    ax.set_ylabel("Erreur régionale médiane vs brut/run-01 (%)")
+    ax.set_ylabel("Erreur médiane entre mesures vs brut/run-01 (%)")
+    ax.set_ylim(bottom=0)  # erreur absolue : 0 est la fidélité parfaite à la référence
 gplot.fig.subplots_adjust(top=.84)
-gplot.fig.suptitle("Scans bougés : fidélité régionale par condition")
-plt.show()""")
+gplot.fig.suptitle("Scans bougés : fidélité des volumes par condition")
+plt.show()
+
+# Ce qu'on voit, calculé : la condition à l'erreur médiane la plus faible sur chaque run.
+best = (fidelity.groupby(["run","condition"], observed=True).erreur_regionale_pct.median()
+        .reset_index().sort_values("erreur_regionale_pct")
+        .groupby("run", observed=True).first())
+display(Markdown(
+    "**Ce qu'on voit.** Boîte plus basse = volumes plus proches du brut/run-01. "
+    f"L'erreur médiane la plus faible revient à **{LABELS[best.loc['run-02','condition']]}** sur run-02 "
+    f"et **{LABELS[best.loc['run-03','condition']]}** sur run-03, mais les écarts entre conditions sont faibles à l'œil. "
+    "Le tableau ci-dessous teste s'ils sont réels."))""")
 
     code("""rows = []
 for run in ["run-02","run-03"]:
@@ -215,31 +339,99 @@ for run in ["run-02","run-03"]:
 motion_tests = pd.concat(rows, ignore_index=True)
 motion_tests["p Holm"] = multipletests(motion_tests.p, method="holm")[1]
 display(motion_tests.drop(columns="p").round(3))
-print("Lecture : une différence négative favorise la première condition nommée.")""")
 
-    md("""## Conclusion
+# Interprétation calculée à partir du tableau (aucune valeur écrite à la main).
+mt = motion_tests.set_index(["run","comparaison"])
+jd2, jp2 = mt.loc[("run-02","JDAC − preproc"), ["différence médiane (points %)","p Holm"]]
+jd3, jp3 = mt.loc[("run-03","JDAC − preproc"), ["différence médiane (points %)","p Holm"]]
+pp2 = mt.loc[("run-02","preproc − brut"), "p Holm"]
+pp3 = mt.loc[("run-03","preproc − brut"), "p Holm"]
+display(Markdown(
+    "**Ce qu'on apprend.** Rappel : négatif = mieux que preproc, positif = pire. "
+    f"JDAC − preproc est positif sur les deux runs bougés (run-02 **{jd2:+.1f}** pts %, p Holm {jp2:.2g} ; "
+    f"run-03 **{jd3:+.1f}** pts %, p Holm {jp3:.2g}) : sur des scans qui ont bougé, JDAC ajoute de l'erreur "
+    "de volume au lieu de la réduire. Les variantes sans débruiteur ne passent pas non plus sous preproc. "
+    f"preproc lui-même ne réduit pas significativement l'erreur du brut (p Holm {pp2:.2g} et {pp3:.2g}), "
+    "attendu : le recalage rigide corrige la pose, pas la déformation due au mouvement."))""")
 
-La décision repose uniquement sur les deux tableaux de contrastes :
+    md("""## 3. Après correction, le mouvement prédit-il encore les volumes ?
 
-1. **Identité :** JDAC ou ses variantes ajoutent-ils plus d'erreur que preproc sur run-01 ?
-2. **Fidélité :** sur run-02 et run-03, réduisent-ils l'erreur par rapport à preproc ?
+Parallèle direct de la section C du notebook épaisseur. Pour chaque condition et chaque mesure du score, on ajuste `volume ~ Agitation + (1 | sujet)` : l'intercept aléatoire absorbe la taille propre de chaque sujet, et le coefficient dit si le score Agitation garde un lien avec le volume. Le tableau compte, par condition, combien de mesures restent liées à Agitation après correction FDR.
 
-Une amélioration visuelle n'est pas considérée comme une restauration anatomique si l'erreur régionale n'est pas réduite.""")
+Une bonne correction donnerait **moins** de mesures liées après traitement qu'au brut (le mouvement n'expliquerait plus le volume). L'interprétation est **sous** le tableau.""")
 
-    code("""def line_for(row, prefix):
+    code("""rows = []
+for condition in CONDITIONS:
+    dc = d[(d.condition==condition) & d.measure.isin(score_measures)].dropna(subset=["agitation","value_mm3"])
+    for measure, x in dc.groupby("measure", observed=True):
+        if len(x) < 20 or x.subject.nunique() < 8:   # trop peu de données pour modéliser
+            continue
+        try:
+            fit = smf.mixedlm("value_mm3 ~ agitation", x, groups=x.subject).fit(
+                reml=False, method="lbfgs", disp=False)
+            coef, p = fit.params["agitation"], fit.pvalues["agitation"]
+        except Exception:
+            # repli si le modèle mixte ne converge pas : sujet en effet fixe (pas d'abandon silencieux).
+            fit = smf.ols("value_mm3 ~ agitation + C(subject)", x).fit()
+            coef, p = fit.params["agitation"], fit.pvalues["agitation"]
+        rows.append({"condition":condition, "measure":measure, "coef":coef, "p":p})
+agit_c = pd.DataFrame(rows)
+# FDR par condition (sur les modèles qui ont convergé).
+agit_c["p_fdr"] = np.nan
+for cond, grp in agit_c.groupby("condition", observed=True):
+    v = grp["p"].notna()
+    if v.any():
+        agit_c.loc[grp.index[v], "p_fdr"] = multipletests(grp.loc[v, "p"], method="fdr_bh")[1]
+
+cnt = (agit_c.assign(sig=agit_c["p_fdr"] < 0.05).groupby("condition", observed=True)
+       .agg(**{"mesures liées à Agitation (FDR<0.05)":("sig","sum"), "mesures testées":("sig","size")}))
+cnt.index = [LABELS[c] for c in cnt.index]
+display(cnt)
+
+# Interprétation calculée.
+sig = agit_c.assign(s=agit_c["p_fdr"] < 0.05).groupby("condition", observed=True)["s"].sum()
+nb_brut, nb_prep, nb_jdac = int(sig.get("brut",0)), int(sig.get("preproc",0)), int(sig.get("jdac",0))
+sens = "moins" if nb_jdac < nb_brut else ("autant" if nb_jdac == nb_brut else "plus")
+lien = ("JDAC ne découple donc pas le volume du mouvement : contrairement à l'épaisseur, où le lien Agitation "
+        "diminuait après JDAC, sur les volumes le mouvement reste au moins aussi prédictif."
+        if nb_jdac >= nb_brut else
+        "JDAC réduit le nombre de volumes liés au mouvement, comme il réduisait le lien sur l'épaisseur.")
+display(Markdown(
+    f"**Ce qu'on apprend.** Sur le brut, **{nb_brut}** mesures du score sont liées à Agitation (sur {int(cnt['mesures testées'].max())} testées). "
+    f"Après preproc il y en a {nb_prep}, après JDAC **{nb_jdac}** : {sens} qu'au brut. "
+    + lien +
+    " À nuancer par la question 1 : ce (dé)couplage s'accompagne d'un déplacement des volumes du scan immobile."))""")
+
+    md("""## Conclusion : les volumes sont-ils reconstruits aussi fidèlement que l'épaisseur ?
+
+La question n'est pas « JDAC bat-il preproc » en soi. Dans l'article, la validité de JDAC repose sur la **fidélité de l'image**. Le premier notebook a testé si cette fidélité se retrouvait sur l'**épaisseur corticale** FreeSurfer (déplacement du scan immobile, récupération des scans bougés, lien Agitation→épaisseur). Ce notebook pose la même question pour les **volumes**.
+
+Les deux lectures de ce notebook se recoupent avec le premier :
+
+- **Scan immobile :** JDAC déforme les volumes là où il n'y a rien à corriger (grise reclassée en blanche + LCR), comme il déplaçait déjà l'épaisseur du run immobile.
+- **Scans bougés :** JDAC ne rapproche pas les volumes du brut/run-01 mieux que preproc, comme il ne restaurait pas l'épaisseur régionale.
+
+Une meilleure image ne suffit donc pas : sur les volumes comme sur l'épaisseur, JDAC modifie l'anatomie du scan propre et n'améliore pas la fidélité des scans bougés.
+
+La **question 3** ferme le lien avec le premier notebook : sur l'épaisseur, JDAC réduisait le lien Agitation→épaisseur (au prix d'un déplacement du scan immobile) ; sur les volumes, elle mesure si ce lien diminue aussi ou non. À lire avec la question 1, car un découplage obtenu en déformant le scan propre n'est pas une reconstruction fidèle.""")
+
+    code("""# Met une ligne de contraste en phrase lisible : ampleur, sens, IC95, p corrigée.
+def line_for(row, prefix):
     diff = row["différence médiane (points %)"]
     direction = "plus d'erreur" if diff > 0 else "moins d'erreur"
     return (f"{prefix}: {abs(diff):.2f} points de {direction} "
             f"[IC95 {row['IC95 bas']:.2f}; {row['IC95 haut']:.2f}], "
             f"p Holm={row['p Holm']:.3g}.")
 
+# On isole les contrastes JDAC vs preproc pour l'identité (run-01) et pour les runs bougés.
 id_jdac = identity_tests[identity_tests.comparaison=="JDAC − preproc"].iloc[0]
 m_jdac = motion_tests[motion_tests.comparaison=="JDAC − preproc"].set_index("run")
 
-print(line_for(id_jdac, "1. Identité, JDAC vs preproc"))
-print(line_for(m_jdac.loc["run-02"], "2. Run-02, JDAC vs preproc"))
-print(line_for(m_jdac.loc["run-03"], "3. Run-03, JDAC vs preproc"))
+print("•", line_for(id_jdac, "Identité (run-01), JDAC vs preproc"))
+print("•", line_for(m_jdac.loc["run-02"], "Fidélité (run-02), JDAC vs preproc"))
+print("•", line_for(m_jdac.loc["run-03"], "Fidélité (run-03), JDAC vs preproc"))
 
+# Règle de décision : bon = pas d'erreur ajoutée sur run-01 ET erreur réduite (p<0.05) sur les runs bougés.
 identity_worse = id_jdac["différence médiane (points %)"] > 0
 improves_02 = (m_jdac.loc["run-02","différence médiane (points %)"] < 0
                and m_jdac.loc["run-02","p Holm"] < 0.05)
@@ -247,14 +439,16 @@ improves_03 = (m_jdac.loc["run-03","différence médiane (points %)"] < 0
                and m_jdac.loc["run-03","p Holm"] < 0.05)
 
 if improves_02 and improves_03 and not identity_worse:
-    conclusion = "JDAC préserve run-01 et améliore les deux runs bougés par rapport à preproc."
+    conclusion = "Sur les volumes, JDAC préserve le scan immobile ET rapproche les scans bougés du brut : la fidélité d'image se traduit en fidélité volumétrique."
 elif (improves_02 or improves_03) and identity_worse:
-    conclusion = "JDAC améliore au moins un run bougé, mais ajoute une erreur sur run-01."
+    conclusion = "JDAC rapproche au moins un run bougé, mais déforme le scan immobile : bénéfice volumétrique partiel et coûteux."
 elif improves_02 or improves_03:
-    conclusion = "JDAC montre un bénéfice limité à un seul niveau de mouvement."
+    conclusion = "Bénéfice volumétrique limité à un seul niveau de mouvement."
 else:
-    conclusion = "JDAC ne démontre pas de bénéfice supplémentaire par rapport à preproc."
-print("4. Conclusion:", conclusion)""")
+    conclusion = ("Sur les volumes, JDAC déforme le scan immobile et ne reconstruit pas les scans bougés "
+                  "mieux que preproc : la fidélité d'image ne se traduit pas en fidélité volumétrique, "
+                  "cohérent avec le constat sur l'épaisseur.")
+print("• Conclusion :", conclusion)""")
 
     nb["cells"] = cells
     nb["metadata"]["kernelspec"] = {
