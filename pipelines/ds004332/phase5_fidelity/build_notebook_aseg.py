@@ -182,9 +182,7 @@ On calcule d'abord, structure par structure :
 
 **erreur absolue (%) = |T − R| / R × 100**
 
-Puis on prend la médiane des mesures du score pour ce sujet. Cette **erreur d'identité** répond seulement à « de combien le résultat s'éloigne-t-il du brut/run-01 ? » : elle est toujours positive ou nulle et ne dit donc pas si une structure grossit ou s'amincit. Une valeur faible est meilleure.
-
-La comparaison principale est JDAC contre preproc, car JDAC est appliqué après ce preprocessing.""")
+Puis on prend la médiane des mesures du score pour ce sujet. Cette **erreur d'identité** répond seulement à « de combien le résultat s'éloigne-t-il du brut/run-01 ? » : elle est toujours positive ou nulle et ne dit donc pas si une structure grossit ou s'amincit. Une valeur faible est meilleure. La conclusion est **sous** le boxplot.""")
 
     code("""# Étape 1 : fixer, pour chaque sujet et chaque mesure, la référence R = brut/run-01.
 ref = (d[(d.condition=="brut") & (d.run=="run-01") & d.measure.isin(score_measures)]
@@ -213,37 +211,25 @@ plt.title("Scan presque immobile : erreur ajoutée par le traitement")
 plt.tight_layout()
 plt.show()
 
-# Repère de lecture : chaque point est un sujet ; une boîte plus haute = plus d'écart au brut/run-01.""")
-
-    md("""Le tableau ci-dessous teste ces écarts par un contraste apparié `candidat − preproc` (mêmes sujets). L'interprétation est **sous** le tableau.""")
-
-    code("""identity_tests = paired_contrasts(
-    identity[identity.condition!="brut"],
-    [
-        ("JDAC − preproc", "jdac", "preproc"),
-        ("antiart ×1 − preproc", "jdac_antiartonly", "preproc"),
-        ("antiart ×4 − preproc", "jdac_nodenoise", "preproc"),
-    ],
-    "erreur_identite_pct",
-)
-display(identity_tests.round(3))
-
-# Interprétation calculée à partir du tableau (aucune valeur écrite à la main).
-jt = identity_tests.set_index("comparaison")
-jdv, jdp = jt.loc["JDAC − preproc", ["différence médiane (points %)", "p Holm"]]
-a1v = jt.loc["antiart ×1 − preproc", "différence médiane (points %)"]
-a4v = jt.loc["antiart ×4 − preproc", "différence médiane (points %)"]
+# Conclusion calculée : médiane de l'erreur vs brut, par condition (chaque point du boxplot = un sujet).
+med = identity.groupby("condition", observed=True).erreur_identite_pct.median()
+cand = med.drop("brut")
+best, worst = LABELS[cand.idxmin()], LABELS[cand.idxmax()]
 display(Markdown(
-    "**Ce qu'on apprend.** Une différence *négative* voudrait dire « plus proche du brut que preproc » ; "
-    "*positive*, « plus d'erreur que preproc ». "
-    f"Les trois sont positives : sur le scan presque immobile, où il n'y a presque rien à corriger, "
-    f"JDAC s'écarte du brut de **{jdv:+.1f} points %** de plus que preproc (p Holm {jdp:.2g}), "
-    f"antiart ×1 de {a1v:+.1f}, antiart ×4 de {a4v:+.1f}. "
-    "Aucun ne préserve donc l'anatomie immobile mieux que le simple preprocessing."))""")
+    "**Conclusion.** Sur un scan immobile il n'y a rien à corriger, donc tout écart au brut est une déformation "
+    "ajoutée par le traitement. Médiane de l'erreur vs brut : "
+    f"preproc {med['preproc']:.1f} %, JDAC {med['jdac']:.1f} %, "
+    f"antiart ×1 {med['jdac_antiartonly']:.1f} %, antiart ×4 {med['jdac_nodenoise']:.1f} %. "
+    f"**{best} reste le plus proche du brut, {worst} s'en éloigne le plus.** "
+    "JDAC modifie donc un cerveau propre au lieu de le laisser presque tel quel."))""")
 
     md("""### Où se produit le changement ?
 
-Tableau descriptif (il n'entre pas dans le test principal). Il montre le changement **signé** de six grands compartiments sur run-01, en **% par rapport à brut/run-01** (médiane sur les sujets). Signe gardé : négatif = compartiment plus petit qu'au brut, positif = plus grand.
+**À quoi ça sert :** la question 1 dit *de combien* JDAC s'écarte du brut, pas *dans quel sens*. Ce tableau montre la **direction** du changement, pour comprendre le mécanisme. Il n'entre pas dans le test principal.
+
+**Ce qui est calculé :** pour chaque grand compartiment et chaque sujet, la variation signée par rapport à son brut/run-01, `(volume traité − volume brut) / volume brut × 100`, puis la médiane sur les sujets. **Unité : % signé.** Négatif = le compartiment a rétréci, positif = il a grossi.
+
+**Pourquoi ces 6 zones :** ce sont les grands tissus du cerveau (matière grise, blanche, LCR, cerveau total). Un lissage se lit comme du gris qui bascule en blanc et en LCR ; ces 6 compartiments suffisent à voir ce basculement, sans se noyer dans les 40 structures détaillées.
 
 | Nom FreeSurfer | En clair | Contenu |
 |---|---|---|
@@ -338,27 +324,41 @@ for run in ["run-02","run-03"]:
     rows.append(tests)
 motion_tests = pd.concat(rows, ignore_index=True)
 motion_tests["p Holm"] = multipletests(motion_tests.p, method="holm")[1]
-display(motion_tests.drop(columns="p").round(3))
+# Tableau lisible : IC95 réuni en une colonne, 3 décimales, lignes JDAC vs preproc surlignées.
+_disp = motion_tests.assign(IC95=motion_tests.apply(
+    lambda r: f"[{r['IC95 bas']:.3f} ; {r['IC95 haut']:.3f}]", axis=1))
+_disp = _disp[["run","comparaison","n","différence médiane (points %)","IC95","p Holm"]]
+_hl = lambda r: ["background-color:#fff3cd;font-weight:bold" if r["comparaison"]=="JDAC − preproc" else "" for _ in r]
+display(_disp.style.apply(_hl, axis=1)
+        .format({"différence médiane (points %)":"{:.3f}", "p Holm":"{:.3f}"})
+        .hide(axis="index"))
 
-# Interprétation calculée à partir du tableau (aucune valeur écrite à la main).
+display(Markdown(
+    "**Définitions.**\\n\\n"
+    "- **différence médiane (points %)** : écart médian d'erreur entre les deux conditions nommées. Négatif = la première est meilleure, positif = pire.\\n"
+    "- **IC95** : fourchette où se situe vraiment cette différence, avec 95 % de confiance. Si elle ne contient pas 0, l'écart est fiable.\\n"
+    "- **p Holm** : probabilité d'un tel écart si les deux conditions étaient en réalité pareilles, corrigée pour le nombre de comparaisons. Inférieure à 0,05 = fiable."))
+
+# Interprétation calculée (correspond aux lignes surlignées).
 mt = motion_tests.set_index(["run","comparaison"])
 jd2, jp2 = mt.loc[("run-02","JDAC − preproc"), ["différence médiane (points %)","p Holm"]]
 jd3, jp3 = mt.loc[("run-03","JDAC − preproc"), ["différence médiane (points %)","p Holm"]]
-pp2 = mt.loc[("run-02","preproc − brut"), "p Holm"]
-pp3 = mt.loc[("run-03","preproc − brut"), "p Holm"]
 display(Markdown(
-    "**Ce qu'on apprend.** Rappel : négatif = mieux que preproc, positif = pire. "
-    f"JDAC − preproc est positif sur les deux runs bougés (run-02 **{jd2:+.1f}** pts %, p Holm {jp2:.2g} ; "
-    f"run-03 **{jd3:+.1f}** pts %, p Holm {jp3:.2g}) : sur des scans qui ont bougé, JDAC ajoute de l'erreur "
-    "de volume au lieu de la réduire. Les variantes sans débruiteur ne passent pas non plus sous preproc. "
-    f"preproc lui-même ne réduit pas significativement l'erreur du brut (p Holm {pp2:.2g} et {pp3:.2g}), "
-    "attendu : le recalage rigide corrige la pose, pas la déformation due au mouvement."))""")
+    "**Ce qu'on apprend.**\\n\\n"
+    f"- JDAC ajoute de l'erreur sur les deux scans bougés : **{jd2:+.1f}** pts % sur run-02 (p Holm {jp2:.3f}), **{jd3:+.1f}** sur run-03 (p Holm {jp3:.3f}).\\n"
+    "- Les variantes sans débruiteur ne passent pas sous preproc (écarts proches de 0, non fiables).\\n"
+    "- Bilan : sur un scan qui a bougé, JDAC ne récupère pas les volumes, il s'en éloigne même un peu plus que le simple preproc."))""")
 
     md("""## 3. Après correction, le mouvement prédit-il encore les volumes ?
 
-Parallèle direct de la section C du notebook épaisseur. Pour chaque condition et chaque mesure du score, on ajuste `volume ~ Agitation + (1 | sujet)` : l'intercept aléatoire absorbe la taille propre de chaque sujet, et le coefficient dit si le score Agitation garde un lien avec le volume. Le tableau compte, par condition, combien de mesures restent liées à Agitation après correction FDR.
+**Idée.** Si la correction marche vraiment, le mouvement ne devrait plus expliquer les volumes mesurés. On teste donc, par condition, combien de volumes restent liés au mouvement.
 
-Une bonne correction donnerait **moins** de mesures liées après traitement qu'au brut (le mouvement n'expliquerait plus le volume). L'interprétation est **sous** le tableau.""")
+**Comment.** Pour chaque condition et chaque volume, un modèle regarde si le volume varie quand le mouvement augmente : `volume ~ Agitation + (1 | sujet)`.
+
+- `Agitation` : le score de mouvement du scan (0 = immobile, environ 3 = fort), fourni par l'outil du labo.
+- `(1 | sujet)` : un décalage propre à chaque sujet. Chaque personne a un cerveau d'une taille différente ; ce terme laisse à chacun son niveau de base, pour mesurer l'effet du mouvement **à l'intérieur** d'un même sujet, sans le confondre avec le fait que certains ont un plus gros cerveau.
+
+On compte ensuite, par condition, combien de volumes sont significativement liés à Agitation, après correction FDR (une correction qui évite les faux positifs quand on fait beaucoup de tests). **Bonne correction = moins de volumes liés qu'au brut.** L'interprétation est **sous** le tableau.""")
 
     code("""rows = []
 for condition in CONDITIONS:
@@ -415,7 +415,15 @@ Une meilleure image ne suffit donc pas : sur les volumes comme sur l'épaisseur,
 
 La **question 3** ferme le lien avec le premier notebook : sur l'épaisseur, JDAC réduisait le lien Agitation→épaisseur (au prix d'un déplacement du scan immobile) ; sur les volumes, elle mesure si ce lien diminue aussi ou non. À lire avec la question 1, car un découplage obtenu en déformant le scan propre n'est pas une reconstruction fidèle.""")
 
-    code("""# Met une ligne de contraste en phrase lisible : ampleur, sens, IC95, p corrigée.
+    code("""# Recalcule les contrastes appariés vs preproc (non affichés en Q1) pour la synthèse.
+identity_tests = paired_contrasts(
+    identity[identity.condition!="brut"],
+    [("JDAC − preproc", "jdac", "preproc"),
+     ("antiart ×1 − preproc", "jdac_antiartonly", "preproc"),
+     ("antiart ×4 − preproc", "jdac_nodenoise", "preproc")],
+    "erreur_identite_pct")
+
+# Met une ligne de contraste en phrase lisible : ampleur, sens, IC95, p corrigée.
 def line_for(row, prefix):
     diff = row["différence médiane (points %)"]
     direction = "plus d'erreur" if diff > 0 else "moins d'erreur"
