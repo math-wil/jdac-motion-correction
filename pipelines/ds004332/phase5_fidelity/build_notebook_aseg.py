@@ -144,36 +144,6 @@ Le tableau suivant utilise seulement six grands volumes : grise corticale, grise
 
 Les volumes de départ sont en **mm³**. Les tableaux montrent des **% par rapport à brut/run-01**.""")
 
-    md("""### Méthode statistique
-
-Les écarts sont résumés par la **médiane entre sujets**. L'incertitude vient d'un **IC95 bootstrap** (ré-échantillonnage des sujets), et chaque comparaison entre deux conditions est un **test apparié de Wilcoxon** (mêmes sujets), avec correction **Holm** pour les comparaisons multiples.""")
-
-    code("""# IC95 de la médiane par bootstrap : on ré-échantillonne les sujets 10 000 fois
-# et on regarde l'étendue de la médiane obtenue. Graine fixe -> reproductible.
-def bootstrap_ci(values, n_boot=10000, seed=20260720):
-    values = np.asarray(values, dtype=float)
-    rng = np.random.default_rng(seed)
-    draws = rng.choice(values, size=(n_boot, len(values)), replace=True)
-    return np.percentile(np.median(draws, axis=1), [2.5, 97.5])
-
-# Compare deux conditions chez les MÊMES sujets (test apparié). Pour chaque paire :
-# diff = candidat - comparateur, sa médiane, son IC95, un test de Wilcoxon.
-# Holm corrige les p-values pour le nombre de comparaisons.
-def paired_contrasts(scores, specs, value_col):
-    wide = scores.pivot(index="subject", columns="condition", values=value_col)
-    rows = []
-    for label, candidate, comparator in specs:
-        pair = wide[[candidate, comparator]].dropna()  # sujets présents dans les deux conditions
-        diff = pair[candidate] - pair[comparator]
-        lo, hi = bootstrap_ci(diff)
-        p = stats.wilcoxon(diff).pvalue if len(diff) >= 3 and np.any(diff != 0) else 1.0
-        rows.append({"comparaison":label, "n":len(diff),
-                     "différence médiane (points %)":np.median(diff),
-                     "IC95 bas":lo, "IC95 haut":hi, "p":p})
-    out = pd.DataFrame(rows)
-    out["p Holm"] = multipletests(out.p, method="holm")[1]
-    return out""")
-
     md("""## 1. Le traitement modifie-t-il le scan presque immobile ?
 
 Pour un sujet et une mesure donnée, la référence **R** = volume FreeSurfer du **brut/run-01**. Le volume comparé **T** est la sortie de la condition correspondante sur le **même run-01** : par exemple, `preproc/run-01`, `JDAC/run-01`, `antiart ×1/run-01` ou `antiart ×4/run-01`.
@@ -225,9 +195,9 @@ display(Markdown(
 
     md("""### Où se produit le changement ?
 
-**À quoi ça sert :** la question 1 dit *de combien* JDAC s'écarte du brut, pas *dans quel sens*. Ce tableau montre la **direction** du changement, pour comprendre le mécanisme. Il n'entre pas dans le test principal.
+**À quoi ça sert :** la question 1 dit *de combien* JDAC s'écarte du brut, pas *dans quel sens*. Ce tableau montre la **direction** du changement, pour comprendre le mécanisme.
 
-**Ce qui est calculé :** pour chaque grand compartiment et chaque sujet, la variation signée par rapport à son brut/run-01, `(volume traité − volume brut) / volume brut × 100`, puis la médiane sur les sujets. **Unité : % signé.** Négatif = le compartiment a rétréci, positif = il a grossi.
+**Ce qui est calculé :** pour chaque grand compartiment et chaque sujet, la variation par rapport à son brut/run-01, `(volume traité − volume brut) / volume brut × 100`, puis la médiane sur les sujets. **Unité : %.** Le signe est gardé : négatif = le compartiment a rétréci, positif = il a grossi.
 
 **Pourquoi ces 6 zones :** ce sont les grands tissus du cerveau (matière grise, blanche, LCR, cerveau total). Un lissage se lit comme du gris qui bascule en blanc et en LCR ; ces 6 compartiments suffisent à voir ce basculement, sans se noyer dans les 40 structures détaillées.
 
@@ -242,8 +212,8 @@ display(Markdown(
 
 L'interprétation des chiffres suit **sous** le tableau.""")
 
-    code("""# Variation SIGNÉE (%) de chaque compartiment sur run-01 vs brut/run-01, médiane sur les sujets.
-# Signe gardé : - = plus petit qu'au brut, + = plus grand.
+    code("""# Variation (%) de chaque compartiment sur run-01 vs brut/run-01, médiane sur les sujets.
+# On garde le sens : - = plus petit qu'au brut, + = plus grand.
 gref = (d[(d.condition=="brut") & (d.run=="run-01") & d.measure.isin(GLOBAL)]
         [["subject","measure","value_mm3"]]
         .rename(columns={"value_mm3":"reference_mm3"}))
@@ -256,8 +226,8 @@ gt = (g.groupby(["condition","measure"], observed=True).signed_pct
 disp = gt.copy()
 disp.columns = [GLOBAL_LABELS[c] for c in disp.columns]
 disp.index = [LABELS[c] for c in disp.index]
-# Unité affichée dans chaque case : % signé.
-display(disp.style.format("{:+.1f} %").set_caption("Variation vs brut/run-01 (% signé)"))
+# Le + ou - dans chaque case indique le sens du changement.
+display(disp.style.format("{:+.1f} %").set_caption("Variation vs brut/run-01 (%)"))
 
 # Interprétation calculée (gt garde les noms d'origine).
 j = gt.loc["jdac"]
@@ -270,11 +240,11 @@ display(Markdown(
     "C'est la signature d'un lissage des frontières gris/blanc, pas d'une correction du mouvement. "
     f"En comparaison, preproc reste sous ±{prep_absmax:.0f} % sur tous les compartiments."))""")
 
-    md("""## 2. Sur les scans bougés, le traitement fait-il mieux que preproc ?
+    md("""## 2. Sur les scans bougés, JDAC récupère-t-il les volumes ?
 
-Même calcul que la question 1, mais **T** est le volume de la condition sur un run bougé (`run-02` nodding, `run-03` shaking). La référence **R** reste le **brut/run-01 du même sujet**.
+Même calcul que la question 1, mais sur les runs qui ont **bougé** (`run-02` léger, `run-03` fort). On mesure toujours l'écart au **brut/run-01** du même sujet.
 
-Le boxplot ci-dessous montre le **niveau d'erreur absolue** par sujet et par condition (donc ≥ 0, jamais négatif). Une boîte plus basse = plus fidèle au brut/run-01. Le tableau qui suit teste ces écarts (`candidat − preproc`) ; chaque interprétation est **sous** sa sortie.""")
+Le boxplot montre, pour chaque condition, la distance des volumes au brut immobile : une boîte plus basse = plus fidèle. Les 5 conditions sont affichées, **y compris le brut bougé** (le scan qui a bougé, sans aucune correction), pour voir si corriger aide vraiment. La conclusion est **sous** la figure.""")
 
     code("""# Étape 1 : associer les sorties des runs bougés à R = brut/run-01.
 moved = (d[d.run.isin(["run-02","run-03"]) & d.measure.isin(score_measures)]
@@ -297,68 +267,29 @@ gplot.fig.subplots_adjust(top=.84)
 gplot.fig.suptitle("Scans bougés : fidélité des volumes par condition")
 plt.show()
 
-# Ce qu'on voit, calculé : la condition à l'erreur médiane la plus faible sur chaque run.
-best = (fidelity.groupby(["run","condition"], observed=True).erreur_regionale_pct.median()
-        .reset_index().sort_values("erreur_regionale_pct")
-        .groupby("run", observed=True).first())
+# Conclusion calculée : médiane de l'erreur vs brut, par condition et par run.
+med = (fidelity.groupby(["run","condition"], observed=True).erreur_regionale_pct
+       .median().unstack("condition"))
+worst02, worst03 = LABELS[med.loc["run-02"].idxmax()], LABELS[med.loc["run-03"].idxmax()]
+def _ligne(run):
+    m = med.loc[run]
+    return (f"{run} : brut {m['brut']:.1f} %, preproc {m['preproc']:.1f} %, JDAC {m['jdac']:.1f} %, "
+            f"antiart ×1 {m['jdac_antiartonly']:.1f} %, antiart ×4 {m['jdac_nodenoise']:.1f} %")
 display(Markdown(
-    "**Ce qu'on voit.** Boîte plus basse = volumes plus proches du brut/run-01. "
-    f"L'erreur médiane la plus faible revient à **{LABELS[best.loc['run-02','condition']]}** sur run-02 "
-    f"et **{LABELS[best.loc['run-03','condition']]}** sur run-03, mais les écarts entre conditions sont faibles à l'œil. "
-    "Le tableau ci-dessous teste s'ils sont réels."))""")
+    "**Conclusion.** Sur un scan bougé, corriger devrait *rapprocher* les volumes du brut immobile. "
+    "Médiane de l'erreur vs brut :\\n\\n"
+    f"- {_ligne('run-02')}\\n"
+    f"- {_ligne('run-03')}\\n\\n"
+    f"La condition **la plus éloignée** du brut est **{worst02}** (run-02) et **{worst03}** (run-03) : "
+    "JDAC n'aide pas à récupérer les volumes, il fait même pire que le brut non corrigé."))""")
 
-    code("""rows = []
-for run in ["run-02","run-03"]:
-    sub = fidelity[fidelity.run==run]
-    tests = paired_contrasts(
-        sub,
-        [
-            ("preproc − brut", "preproc", "brut"),
-            ("JDAC − preproc", "jdac", "preproc"),
-            ("antiart ×1 − preproc", "jdac_antiartonly", "preproc"),
-            ("antiart ×4 − preproc", "jdac_nodenoise", "preproc"),
-        ],
-        "erreur_regionale_pct",
-    )
-    tests.insert(0, "run", run)
-    rows.append(tests)
-motion_tests = pd.concat(rows, ignore_index=True)
-motion_tests["p Holm"] = multipletests(motion_tests.p, method="holm")[1]
-# Tableau lisible : IC95 réuni en une colonne, 3 décimales, lignes JDAC vs preproc surlignées.
-_disp = motion_tests.assign(IC95=motion_tests.apply(
-    lambda r: f"[{r['IC95 bas']:.3f} ; {r['IC95 haut']:.3f}]", axis=1))
-_disp = _disp[["run","comparaison","n","différence médiane (points %)","IC95","p Holm"]]
-_hl = lambda r: ["background-color:#fff3cd;font-weight:bold" if r["comparaison"]=="JDAC − preproc" else "" for _ in r]
-display(_disp.style.apply(_hl, axis=1)
-        .format({"différence médiane (points %)":"{:.3f}", "p Holm":"{:.3f}"})
-        .hide(axis="index"))
+    md("""## 3. Après correction, le mouvement explique-t-il encore les volumes ?
 
-display(Markdown(
-    "**Définitions.**\\n\\n"
-    "- **différence médiane (points %)** : écart médian d'erreur entre les deux conditions nommées. Négatif = la première est meilleure, positif = pire.\\n"
-    "- **IC95** : fourchette où se situe vraiment cette différence, avec 95 % de confiance. Si elle ne contient pas 0, l'écart est fiable.\\n"
-    "- **p Holm** : probabilité d'un tel écart si les deux conditions étaient en réalité pareilles, corrigée pour le nombre de comparaisons. Inférieure à 0,05 = fiable."))
+**L'idée simple.** Quand un scan bouge, ses volumes sont faussés. Si la correction marchait, après traitement le mouvement ne devrait plus rien expliquer. On regarde donc, par condition, **combien de volumes (sur 40) sont encore influencés par le mouvement**.
 
-# Interprétation calculée (correspond aux lignes surlignées).
-mt = motion_tests.set_index(["run","comparaison"])
-jd2, jp2 = mt.loc[("run-02","JDAC − preproc"), ["différence médiane (points %)","p Holm"]]
-jd3, jp3 = mt.loc[("run-03","JDAC − preproc"), ["différence médiane (points %)","p Holm"]]
-display(Markdown(
-    "**Ce qu'on apprend.**\\n\\n"
-    f"- JDAC ajoute de l'erreur sur les deux scans bougés : **{jd2:+.1f}** pts % sur run-02 (p Holm {jp2:.3f}), **{jd3:+.1f}** sur run-03 (p Holm {jp3:.3f}).\\n"
-    "- Les variantes sans débruiteur ne passent pas sous preproc (écarts proches de 0, non fiables).\\n"
-    "- Bilan : sur un scan qui a bougé, JDAC ne récupère pas les volumes, il s'en éloigne même un peu plus que le simple preproc."))""")
+**Comment on le sait.** Pour chaque volume, on teste s'il change quand le score de mouvement du scan augmente (score « Agitation », 0 = immobile, environ 3 = fort). Point technique : chaque sujet a une tête d'une taille différente, donc on regarde l'effet du mouvement **à l'intérieur d'un même sujet** (chacun garde son niveau de base), sinon on confondrait « bouge beaucoup » avec « a un gros cerveau ».
 
-    md("""## 3. Après correction, le mouvement prédit-il encore les volumes ?
-
-**Idée.** Si la correction marche vraiment, le mouvement ne devrait plus expliquer les volumes mesurés. On teste donc, par condition, combien de volumes restent liés au mouvement.
-
-**Comment.** Pour chaque condition et chaque volume, un modèle regarde si le volume varie quand le mouvement augmente : `volume ~ Agitation + (1 | sujet)`.
-
-- `Agitation` : le score de mouvement du scan (0 = immobile, environ 3 = fort), fourni par l'outil du labo.
-- `(1 | sujet)` : un décalage propre à chaque sujet. Chaque personne a un cerveau d'une taille différente ; ce terme laisse à chacun son niveau de base, pour mesurer l'effet du mouvement **à l'intérieur** d'un même sujet, sans le confondre avec le fait que certains ont un plus gros cerveau.
-
-On compte ensuite, par condition, combien de volumes sont significativement liés à Agitation, après correction FDR (une correction qui évite les faux positifs quand on fait beaucoup de tests). **Bonne correction = moins de volumes liés qu'au brut.** L'interprétation est **sous** le tableau.""")
+**À lire dans le tableau :** le nombre de volumes encore liés au mouvement, par condition. **Moins qu'au brut = la correction aide ; plus = elle n'aide pas.**""")
 
     code("""rows = []
 for condition in CONDITIONS:
@@ -415,48 +346,18 @@ Une meilleure image ne suffit donc pas : sur les volumes comme sur l'épaisseur,
 
 La **question 3** ferme le lien avec le premier notebook : sur l'épaisseur, JDAC réduisait le lien Agitation→épaisseur (au prix d'un déplacement du scan immobile) ; sur les volumes, elle mesure si ce lien diminue aussi ou non. À lire avec la question 1, car un découplage obtenu en déformant le scan propre n'est pas une reconstruction fidèle.""")
 
-    code("""# Recalcule les contrastes appariés vs preproc (non affichés en Q1) pour la synthèse.
-identity_tests = paired_contrasts(
-    identity[identity.condition!="brut"],
-    [("JDAC − preproc", "jdac", "preproc"),
-     ("antiart ×1 − preproc", "jdac_antiartonly", "preproc"),
-     ("antiart ×4 − preproc", "jdac_nodenoise", "preproc")],
-    "erreur_identite_pct")
+    code("""# Synthèse en langage simple, à partir des médianes d'erreur vs brut (aucun jargon).
+id_med = identity.groupby("condition", observed=True).erreur_identite_pct.median()
+mv_med = fidelity.groupby(["run","condition"], observed=True).erreur_regionale_pct.median()
+sig_cnt = agit_c.assign(s=agit_c["p_fdr"] < 0.05).groupby("condition", observed=True)["s"].sum()
 
-# Met une ligne de contraste en phrase lisible : ampleur, sens, IC95, p corrigée.
-def line_for(row, prefix):
-    diff = row["différence médiane (points %)"]
-    direction = "plus d'erreur" if diff > 0 else "moins d'erreur"
-    return (f"{prefix}: {abs(diff):.2f} points de {direction} "
-            f"[IC95 {row['IC95 bas']:.2f}; {row['IC95 haut']:.2f}], "
-            f"p Holm={row['p Holm']:.3g}.")
-
-# On isole les contrastes JDAC vs preproc pour l'identité (run-01) et pour les runs bougés.
-id_jdac = identity_tests[identity_tests.comparaison=="JDAC − preproc"].iloc[0]
-m_jdac = motion_tests[motion_tests.comparaison=="JDAC − preproc"].set_index("run")
-
-print("•", line_for(id_jdac, "Identité (run-01), JDAC vs preproc"))
-print("•", line_for(m_jdac.loc["run-02"], "Fidélité (run-02), JDAC vs preproc"))
-print("•", line_for(m_jdac.loc["run-03"], "Fidélité (run-03), JDAC vs preproc"))
-
-# Règle de décision : bon = pas d'erreur ajoutée sur run-01 ET erreur réduite (p<0.05) sur les runs bougés.
-identity_worse = id_jdac["différence médiane (points %)"] > 0
-improves_02 = (m_jdac.loc["run-02","différence médiane (points %)"] < 0
-               and m_jdac.loc["run-02","p Holm"] < 0.05)
-improves_03 = (m_jdac.loc["run-03","différence médiane (points %)"] < 0
-               and m_jdac.loc["run-03","p Holm"] < 0.05)
-
-if improves_02 and improves_03 and not identity_worse:
-    conclusion = "Sur les volumes, JDAC préserve le scan immobile ET rapproche les scans bougés du brut : la fidélité d'image se traduit en fidélité volumétrique."
-elif (improves_02 or improves_03) and identity_worse:
-    conclusion = "JDAC rapproche au moins un run bougé, mais déforme le scan immobile : bénéfice volumétrique partiel et coûteux."
-elif improves_02 or improves_03:
-    conclusion = "Bénéfice volumétrique limité à un seul niveau de mouvement."
-else:
-    conclusion = ("Sur les volumes, JDAC déforme le scan immobile et ne reconstruit pas les scans bougés "
-                  "mieux que preproc : la fidélité d'image ne se traduit pas en fidélité volumétrique, "
-                  "cohérent avec le constat sur l'épaisseur.")
-print("• Conclusion :", conclusion)""")
+print(f"1. Scan immobile : erreur vs brut de {id_med['preproc']:.1f} % pour preproc contre {id_med['jdac']:.1f} % pour JDAC.")
+print("   -> JDAC déforme le plus un cerveau qui n'avait rien à corriger.")
+print(f"2. Scans bougés : la condition la plus éloignée du brut est {LABELS[mv_med.loc['run-02'].idxmax()]} (run-02) et {LABELS[mv_med.loc['run-03'].idxmax()]} (run-03).")
+print("   -> corriger avec JDAC n'aide pas, il éloigne même les volumes du scan immobile.")
+print(f"3. Mouvement : {int(sig_cnt['brut'])} volumes liés au mouvement au brut, {int(sig_cnt['jdac'])} après JDAC.")
+print("   -> JDAC ne découple pas le mouvement des volumes (il en laisse même plus).")
+print("Bilan : une image plus nette n'est pas une anatomie plus fidèle ; JDAC ne reconstruit pas mieux les volumes que le simple preproc.")""")
 
     nb["cells"] = cells
     nb["metadata"]["kernelspec"] = {
