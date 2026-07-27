@@ -17,6 +17,7 @@ Agitation, les dizaines de modèles par structure, les classements exploratoires
 - `explore_aseg_rigide.ipynb` : notebook minimal généré; il doit être exécuté sur le PC du labo.
 - `inspect_central_structure.py` : contrôle visuel séparé des thalamus et ventricules à partir de `T1.mgz` et `aseg.mgz`.
 - `extract_aseg_stats.py` : outil de secours permettant de reconstruire les tables si elles sont perdues.
+- `extract_morphometry_stats.py` : extraction unifiée des `aseg.stats` et `lh/rh.aparc.stats` des cinq conditions. Il produit les épaisseurs, surfaces, volumes corticaux et volumes sous-corticaux avec leurs unités et leur provenance, sans effectuer d'analyse statistique.
 
 L'export HTML doit être recréé seulement après exécution complète de cette version.
 
