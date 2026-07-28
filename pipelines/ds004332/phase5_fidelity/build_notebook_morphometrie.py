@@ -198,6 +198,33 @@ plt.show()
 if n_hors:
     display(Markdown(f"*Axes cadrés sur les boîtes et moustaches pour rester lisibles ; {n_hors} points extrêmes (outliers) sont volontairement hors cadre.*"))''')
 
+    md("""### Vérification mathématique : volume ≈ surface × épaisseur
+
+Le cortex est une **nappe** : son volume vaut à peu près `surface × épaisseur`, donc en pourcentage `% volume ≈ % surface + % épaisseur`. Ce tableau (sur le scan immobile) vérifie que les trois mesures corticales sont cohérentes entre elles, et pas seulement dans le même sens.""")
+
+    code('''def _pct_run01(family, metric, agg, pos=False):
+    p = par_acquisition(d, family, metric, agg, positive_only=pos)
+    ref = p[(p.condition == "brut") & (p.run == "run-01")][["subject","value"]].rename(columns={"value":"ref"})
+    p = p.merge(ref, on="subject")
+    p = p[p.run == "run-01"]
+    p["pct"] = 100 * (p.value - p.ref) / p.ref
+    return p.groupby("condition", observed=True)["pct"].median()
+
+verif = pd.DataFrame({
+    "% épaisseur": _pct_run01("cortical_region", "thickness", "mean", pos=True),
+    "% surface":   _pct_run01("cortical_region", "surface_area", "sum"),
+    "% volume":    _pct_run01("cortical_region", "cortical_gray_volume", "sum"),
+}).reindex(CONDITIONS)
+verif["% épaisseur + % surface"] = verif["% épaisseur"] + verif["% surface"]
+verif = verif[["% épaisseur", "% surface", "% épaisseur + % surface", "% volume"]]
+display(verif.round(1))
+display(Markdown(
+    "**Lecture.** La colonne « % épaisseur + % surface » doit approcher « % volume », et c'est le cas ici : "
+    "les trois mesures corticales sont cohérentes, pas seulement dans le même sens. Quand surface et épaisseur "
+    "baissent ensemble (ex. JDAC), le volume baisse davantage car les deux effets s'additionnent ; quand elles "
+    "partent en sens opposés (surface qui monte, épaisseur qui baisse), le volume bouge peu. Cette relation ne "
+    "vaut que pour le cortex (une nappe) ; `SubCortGrayVol` est un volume de noyaux profonds, sans surface ni épaisseur."))''')
+
     md("""## Figure complémentaire : quelques structures sous-corticales
 
 **Question posée.** Le même déplacement se voit-il structure par structure (thalamus, hippocampe, putamen, ventricule latéral) ?

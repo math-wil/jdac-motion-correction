@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1e930d6e">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1543e6de">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7820,7 +7820,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=c3ea5771">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=adcd529c">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -7836,7 +7836,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=58278aea">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3d869e76">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7845,9 +7845,9 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs jp-mod-noInput" id="cell-id=78a882ca">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs jp-mod-noInput" id="cell-id=d6e09beb">
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e98a1cf3">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1847a7d5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7857,7 +7857,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=49595156">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=c9d68f5d">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -7875,7 +7875,103 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bdb85a42">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=39a49811">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h3 id="V%C3%A9rification-math%C3%A9matique-:-volume-%E2%89%88-surface-%C3%97-%C3%A9paisseur">Vérification mathématique : volume ≈ surface × épaisseur<a class="anchor-link" href="#V%C3%A9rification-math%C3%A9matique-:-volume-%E2%89%88-surface-%C3%97-%C3%A9paisseur">¶</a></h3><p>Le cortex est une <strong>nappe</strong> : son volume vaut à peu près <code>surface × épaisseur</code>, donc en pourcentage <code>% volume ≈ % surface + % épaisseur</code>. Ce tableau (sur le scan immobile) vérifie que les trois mesures corticales sont cohérentes entre elles, et pas seulement dans le même sens.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=18fc68b8">
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>% épaisseur</th>
+<th>% surface</th>
+<th>% épaisseur + % surface</th>
+<th>% volume</th>
+</tr>
+<tr>
+<th>condition</th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>brut</th>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+</tr>
+<tr>
+<th>preproc</th>
+<td>-3.1</td>
+<td>-0.4</td>
+<td>-3.4</td>
+<td>-4.1</td>
+</tr>
+<tr>
+<th>jdac</th>
+<td>-5.2</td>
+<td>-10.3</td>
+<td>-15.5</td>
+<td>-14.2</td>
+</tr>
+<tr>
+<th>jdac_antiartonly</th>
+<td>-6.4</td>
+<td>-2.0</td>
+<td>-8.5</td>
+<td>-8.2</td>
+</tr>
+<tr>
+<th>jdac_nodenoise</th>
+<td>-7.1</td>
+<td>2.8</td>
+<td>-4.4</td>
+<td>-1.1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-OutputArea-output" data-mime-type="text/markdown" tabindex="0">
+<p><strong>Lecture.</strong> La colonne « % épaisseur + % surface » doit approcher « % volume », et c'est le cas ici : les trois mesures corticales sont cohérentes, pas seulement dans le même sens. Quand surface et épaisseur baissent ensemble (ex. JDAC), le volume baisse davantage car les deux effets s'additionnent ; quand elles partent en sens opposés (surface qui monte, épaisseur qui baisse), le volume bouge peu. Cette relation ne vaut que pour le cortex (une nappe) ; <code>SubCortGrayVol</code> est un volume de noyaux profonds, sans surface ni épaisseur.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d365d036">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7885,7 +7981,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=0bf6eac4">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=b6ccddee">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -7903,7 +7999,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=970aedf8">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=82244946">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7913,7 +8009,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=1487f26b">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=91daa059">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -8100,7 +8196,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=96f21934">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=0fac9e46">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
