@@ -44,10 +44,10 @@ OUTDIR = REPO / "results/ds004332/phase4_compare_3bras"
 CONDITIONS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
 CONSIGNE = {"run-01": "still", "run-02": "nodding", "run-03": "shaking"}
 WIDE_PATH = {
-    "preproc":          "thickness_preproc_rigid_{h}.csv",
-    "jdac":             "thickness_jdac_rigid_{h}.csv",
-    "jdac_antiartonly": "thickness_jdac_antiartonly_rigid/thickness_jdac_antiartonly_rigid_{h}.csv",
-    "jdac_nodenoise":   "thickness_jdac_nodenoise_rigid/thickness_jdac_nodenoise_rigid_{h}.csv",
+    "preproc":          "thickness/thickness_preproc_{h}.csv",
+    "jdac":             "thickness/thickness_jdac_{h}.csv",
+    "jdac_antiartonly": "thickness/thickness_jdac_antiartonly_{h}.csv",
+    "jdac_nodenoise":   "thickness/thickness_jdac_nodenoise_{h}.csv",
 }
 
 

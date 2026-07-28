@@ -21,10 +21,10 @@ REPO = Path(__file__).resolve().parents[3]
 DERIV = HOME / "Documents/derivatives/ds004332"
 OUT = REPO / "results/ds004332/phase4_compare_3bras/recovery_metrics.csv"
 CONDS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
-WIDE = {"preproc": "thickness_preproc_rigid_{h}.csv",
-        "jdac": "thickness_jdac_rigid_{h}.csv",
-        "jdac_antiartonly": "thickness_jdac_antiartonly_rigid/thickness_jdac_antiartonly_rigid_{h}.csv",
-        "jdac_nodenoise": "thickness_jdac_nodenoise_rigid/thickness_jdac_nodenoise_rigid_{h}.csv"}
+WIDE = {"preproc": "thickness/thickness_preproc_{h}.csv",
+        "jdac": "thickness/thickness_jdac_{h}.csv",
+        "jdac_antiartonly": "thickness/thickness_jdac_antiartonly_{h}.csv",
+        "jdac_nodenoise": "thickness/thickness_jdac_nodenoise_{h}.csv"}
 
 
 def load_regional():

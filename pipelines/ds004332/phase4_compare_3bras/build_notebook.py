@@ -39,7 +39,7 @@ def build():
 
 **Unité.** Épaisseurs en **mm** ; mouvement = score Agitation (sans unité). Trois runs par sujet : run-01 immobile (still), run-02 (nodding), run-03 bougé (shaking).
 
-**Sources** : brut `results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv` ; preproc/jdac `derivatives/ds004332/thickness_{preproc,jdac}_rigid_{lh,rh}.csv` ; variantes `derivatives/ds004332/thickness_jdac_{antiartonly,nodenoise}_rigid/…` ; Agitation `results/ds004332/agitation/ds004332_agitation_clinica.csv` ; âge/sexe `raw_datasets/ds004332/participants.tsv`.""")
+**Sources** : brut `results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv` ; preproc/jdac `derivatives/ds004332/thickness/thickness_{preproc,jdac}_{lh,rh}.csv` ; variantes `derivatives/ds004332/thickness/thickness_jdac_{antiartonly,nodenoise}_{lh,rh}.csv` ; Agitation `results/ds004332/agitation/ds004332_agitation_clinica.csv` ; âge/sexe `raw_datasets/ds004332/participants.tsv`.""")
 
     md("""<style>
 /* Présentation lisible sur un écran pendant la réunion. */
@@ -110,10 +110,10 @@ CONDITIONS = ["brut", "preproc", "jdac", "jdac_antiartonly", "jdac_nodenoise"]
 SHORT = {"brut": "brut", "preproc": "prep", "jdac": "jdac",
          "jdac_antiartonly": "aa×1", "jdac_nodenoise": "nod×4"}
 CONSIGNE = {"run-01": "still", "run-02": "nodding", "run-03": "shaking"}
-WIDE = {"preproc": "thickness_preproc_rigid_{h}.csv",
-        "jdac": "thickness_jdac_rigid_{h}.csv",
-        "jdac_antiartonly": "thickness_jdac_antiartonly_rigid/thickness_jdac_antiartonly_rigid_{h}.csv",
-        "jdac_nodenoise": "thickness_jdac_nodenoise_rigid/thickness_jdac_nodenoise_rigid_{h}.csv"}
+WIDE = {"preproc": "thickness/thickness_preproc_{h}.csv",
+        "jdac": "thickness/thickness_jdac_{h}.csv",
+        "jdac_antiartonly": "thickness/thickness_jdac_antiartonly_{h}.csv",
+        "jdac_nodenoise": "thickness/thickness_jdac_nodenoise_{h}.csv"}
 
 def load_brut():
     d = pd.read_csv(REPO / "results/ds004332/phase1_RAW/ThickAvg_phase1_complete.csv")
