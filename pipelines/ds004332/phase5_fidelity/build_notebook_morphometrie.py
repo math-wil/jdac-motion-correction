@@ -119,11 +119,13 @@ def distance_a_reference(per):
     return per
 
 def box_distance(ax, per, titre, unite):
+    groups = []
     for i, c in enumerate(CONDITIONS):
         for cons in ["still","nodding","shaking"]:
             vals = per[(per["condition"] == c) & (per["consigne"] == cons)]["dist"].dropna()
             if vals.empty:
                 continue
+            groups.append(vals)
             pos = i + OFFSETS[cons]
             bp = ax.boxplot(vals, positions=[pos], widths=0.18, patch_artist=True,
                             showfliers=False, medianprops={"color":"black","lw":1.3})
@@ -138,12 +140,29 @@ def box_distance(ax, per, titre, unite):
     ax.set_title(titre, fontsize=12)
     ax.set_ylabel(f"écart à brut/run-01 ({unite})")
     ax.grid(axis="y", alpha=0.18)
+    # Cadrage robuste : borner l'axe sur les boîtes et leurs moustaches (Tukey,
+    # 1.5x IQR), 0 inclus, pour ne pas etre dezoome par quelques valeurs extremes.
+    # Les points hors fenetre sont comptes et signales sous la figure.
+    lows, highs, n_hors = [], [], 0
+    for v in groups:
+        q1, q3 = v.quantile(0.25), v.quantile(0.75)
+        iqr = q3 - q1
+        lo_f, hi_f = q1 - 1.5*iqr, q3 + 1.5*iqr
+        inl = v[(v >= lo_f) & (v <= hi_f)]
+        if len(inl):
+            lows.append(inl.min()); highs.append(inl.max())
+        n_hors += int(((v < lo_f) | (v > hi_f)).sum())
+    if lows:
+        lo, hi = min(lows + [0.0]), max(highs + [0.0])
+        span = (hi - lo) or 1.0
+        ax.set_ylim(lo - 0.08*span, hi + 0.08*span)
+    return n_hors
 
 def legende_consignes(fig):
     handles = [plt.Line2D([], [], marker="o", ls="", color=COLORS[c],
                label={"still":"run-01 immobile","nodding":"run-02 nodding","shaking":"run-03 shaking"}[c])
                for c in ["still","nodding","shaking"]]
-    fig.legend(handles=handles, loc="upper center", ncol=3, frameon=False, fontsize=11)''')
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=11)''')
 
     md("""## Figure principale : quatre mesures globales côte à côte
 
@@ -167,13 +186,17 @@ if manquantes:
                      + ". Vérifier que `lh/rh.aparc.stats` ont bien été extraits pour les cinq conditions."))
 
 fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+n_hors = 0
 for ax, (titre, unite, per) in zip(axes.flat, MESURES):
     if per.empty:
         ax.set_title(titre + " (données absentes)", fontsize=12); ax.set_axis_off(); continue
-    box_distance(ax, distance_a_reference(per), titre, unite)
+    n_hors += box_distance(ax, distance_a_reference(per), titre, unite)
+fig.suptitle("Distance signée à brut/run-01 du même sujet, par condition et par consigne", y=0.99)
+fig.tight_layout(rect=[0, 0.06, 1, 0.95])
 legende_consignes(fig)
-fig.suptitle("Distance signée à brut/run-01 du même sujet, par condition et par consigne", y=0.995)
-fig.tight_layout(rect=[0, 0, 1, 0.96]); plt.show()''')
+plt.show()
+if n_hors:
+    display(Markdown(f"*Axes cadrés sur les boîtes et moustaches pour rester lisibles ; {n_hors} points extrêmes (outliers) sont volontairement hors cadre.*"))''')
 
     md("""## Figure complémentaire : quelques structures sous-corticales
 
@@ -190,16 +213,20 @@ fig.tight_layout(rect=[0, 0, 1, 0.96]); plt.show()''')
 aseg_reg = d[d["family"] == "aseg_region"].copy()
 
 fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+n_hors = 0
 for ax, (titre, motif) in zip(axes.flat, REGIONS):
     sub = aseg_reg[aseg_reg["region"].str.contains(motif, na=False)]
     if sub.empty:
         ax.set_title(titre + " (absent de aseg)", fontsize=12); ax.set_axis_off(); continue
     per = (sub.groupby(["subject","run","condition"], observed=True)["value"]
               .sum().reset_index(name="value"))
-    box_distance(ax, distance_a_reference(per), titre, "mm³")
+    n_hors += box_distance(ax, distance_a_reference(per), titre, "mm³")
+fig.suptitle("Structures sous-corticales : distance signée à brut/run-01", y=0.99)
+fig.tight_layout(rect=[0, 0.06, 1, 0.95])
 legende_consignes(fig)
-fig.suptitle("Structures sous-corticales : distance signée à brut/run-01", y=0.995)
-fig.tight_layout(rect=[0, 0, 1, 0.96]); plt.show()''')
+plt.show()
+if n_hors:
+    display(Markdown(f"*Axes cadrés sur les boîtes et moustaches ; {n_hors} points extrêmes sont hors cadre.*"))''')
 
     md("""## Contrôle : SubCortGrayVol sujet par sujet, avant toute interprétation
 
