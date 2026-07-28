@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère le notebook morphométrique descriptif : explore_morphometrie_rigide.ipynb
+"""Génère le notebook morphométrique descriptif : explore_morphometrie.ipynb
 
 But (réunion du 24 juillet) : placer côte à côte des boxplots STRICTEMENT comparables
 pour épaisseur, surface corticale, volume cortical et SubCortGrayVol, plus quelques
@@ -14,7 +14,7 @@ extract_morphometry_stats.py. Aucune analyse Agitation, aucun test, aucune p-val
 from pathlib import Path
 import nbformat as nbf
 
-OUT = Path(__file__).with_name("explore_morphometrie_rigide.ipynb")
+OUT = Path(__file__).with_name("explore_morphometrie.ipynb")
 
 
 def build() -> None:
@@ -23,7 +23,7 @@ def build() -> None:
     md = lambda t: cells.append(nbf.v4.new_markdown_cell(t))
     code = lambda t: cells.append(nbf.v4.new_code_cell(t))
 
-    md("""# Morphométrie descriptive des cinq conditions (pipeline rigide)
+    md("""# Morphométrie descriptive des cinq conditions
 
 **Question.** Les effets déjà vus sur l'épaisseur corticale se retrouvent-ils, dans le même sens, sur la surface corticale, le volume cortical et les volumes sous-corticaux ?
 
