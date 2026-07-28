@@ -1,6 +1,24 @@
-# Phase 5 — Fidélité des volumes FreeSurfer
+# Phase 5 — Fidélité morphométrique FreeSurfer
 
-Cette phase analyse les tables `aseg.stats` séparément de l'épaisseur corticale. Le notebook principal est volontairement limité à deux questions.
+## Analyse morphométrique unifiée (source de référence)
+
+Analyse descriptive côte à côte de l'épaisseur, de la surface, du volume cortical et des volumes sous-corticaux, toutes rapportées à la **distance signée à `brut/run-01` du même sujet** (même définition que le boxplot d'épaisseur de la phase 4).
+
+- Source compilée unique, **versionnée dans le dépôt** (utilisable depuis GitHub, sans `derivatives`) : `results/ds004332/phase5_fidelity/morphometry_long.csv` (+ `morphometry_completeness.csv`). Table longue : `subject, run, condition, family, hemi, region, metric, value, unit`, familles `cortical_region` (thickness/surface_area/cortical_gray_volume, depuis `aparc.stats`), `aseg_global` (dont `SubCortGrayVol`) et `aseg_region`. La colonne `source_file` (chemins Narval) a été retirée.
+- Produite par `extract_morphometry_stats.py` sur Narval (lit `aseg.stats` + `lh/rh.aparc.stats` des 5 conditions ; chemins par défaut = dossiers `*_rigid` de Narval), puis rapatriée par `rsync`.
+- Notebook `explore_morphometrie.ipynb` (généré par `build_notebook_morphometrie.py`), export `explore_morphometrie.html` : figure principale (4 mesures globales), figure sous-corticale (thalamus, hippocampe, putamen, ventricule latéral) et contrôle `SubCortGrayVol` sujet par sujet. Descriptif seulement, sans Agitation ni test.
+
+Pour régénérer et exécuter depuis le dépôt (le CSV suffit, pas besoin de `derivatives`) :
+
+```bash
+python build_notebook_morphometrie.py
+jupyter nbconvert --to notebook --execute --inplace explore_morphometrie.ipynb
+jupyter nbconvert --to html --no-input explore_morphometrie.ipynb
+```
+
+## Analyse aseg antérieure (volumes seuls)
+
+Cette section analyse les tables `aseg.stats` séparément. Le notebook `aseg` est volontairement limité à deux questions et reste local (source `derivatives/.../aseg_stats/`).
 
 ## Questions principales
 
