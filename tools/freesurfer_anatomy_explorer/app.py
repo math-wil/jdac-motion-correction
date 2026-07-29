@@ -18,7 +18,7 @@ import numpy as np
 import pyvista as pv
 from trame.app import get_server
 from trame.ui.vuetify3 import SinglePageLayout
-from trame.widgets import html, vtk
+from trame.widgets import client, html, vtk
 from trame.widgets import vuetify3 as v3
 
 from catalog import (
@@ -453,7 +453,7 @@ class Explorer:
                 v3.VBtn("Recentrer", variant="text", size="small", click=ctrl.reset_camera)
 
             with layout.content:
-                html.Style(
+                client.Style(
                     """
                     .explorer-root { background: #f4f6f8; min-height: calc(100vh - 64px); }
                     .control-column { max-height: calc(100vh - 64px); overflow-y: auto; }
@@ -612,11 +612,15 @@ class Explorer:
                             )
 
                         with v3.VCol(cols=12, md=6, classes="viewer-column"):
-                            with html.Div(classes="vtk-container"):
+                            with html.Div(
+                                classes="vtk-container",
+                                style="height: calc(100vh - 64px); min-height: 620px;",
+                            ):
                                 view = vtk.VtkLocalView(
                                     self.plotter.ren_win,
                                     picking_modes=("['click']",),
                                     click="pick_data = $event",
+                                    style="width: 100%; height: 100%; min-height: 620px;",
                                 )
                                 ctrl.view_update = view.update
                                 ctrl.view_reset_camera = view.reset_camera
