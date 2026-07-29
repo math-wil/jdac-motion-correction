@@ -59,13 +59,19 @@ python app.py --no-browser
 
 ## Comment l'utiliser
 
-1. Commencer par le parcours **S'orienter**.
-2. Choisir **Éplucher le cerveau** et faire varier l'opacité du cortex.
-3. Activer la coupe et déplacer sa position pour voir les structures profondes.
-4. Cliquer une structure, ou la chercher dans la liste à droite.
-5. Ouvrir le glossaire pour relier le dessin au nom rencontré dans
-   `aparc.stats` ou `aseg.stats`.
-
+1. Choisir une **vue intelligente** selon la question : **Extérieur**,
+   **Ruban**, **Profond** ou **Ventricules**. Elle règle automatiquement les
+   couches, leur opacité, la coupe et la caméra.
+2. Tourner le cerveau par glisser-déposer, zoomer avec la molette et cliquer
+   une structure pour l'identifier.
+3. Ajuster au besoin chaque couche avec son interrupteur et son curseur
+   d'opacité.
+4. Pour une coupe manuelle, choisir le plan sagittal, coronal ou axial,
+   déplacer le curseur, puis utiliser **Centrer** ou **Autre moitié**.
+5. Chercher une structure à droite et utiliser **Isoler et centrer la
+   structure** pour la dégager du reste du cerveau.
+6. Passer de l'onglet **Anatomie** à **Mesures** pour relier la géométrie au
+   nom rencontré dans `aparc.stats` ou `aseg.stats`.
 ## Choix anatomiques
 
 `fsaverage5` fournit de vraies surfaces corticales FreeSurfer légères et

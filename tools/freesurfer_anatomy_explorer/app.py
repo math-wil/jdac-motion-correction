@@ -42,14 +42,69 @@ GROUP_LABELS = {
 }
 
 GROUP_DEFAULTS = {
-    "cortex": (True, 0.42),
-    "white_matter": (True, 0.28),
-    "csf": (False, 0.10),
-    "deep": (True, 0.95),
-    "ventricles": (True, 0.85),
-    "corpus_callosum": (True, 0.95),
+    "cortex": (True, 0.96),
+    "white_matter": (False, 0.82),
+    "csf": (False, 0.12),
+    "deep": (False, 0.95),
+    "ventricles": (False, 0.95),
+    "corpus_callosum": (False, 0.95),
     "brainstem": (True, 0.95),
-    "cerebellum": (True, 0.75),
+    "cerebellum": (True, 0.88),
+}
+
+EXPLORATION_MODES = {
+    "external": {
+        "label": "Extérieur",
+        "hint": "La forme générale du cerveau, sans superposition interne.",
+        "groups": {
+            "cortex": (True, 0.96),
+            "brainstem": (True, 0.95),
+            "cerebellum": (True, 0.88),
+        },
+        "clip": (False, "sagittal", 50),
+        "view": "lateral",
+    },
+    "ribbon": {
+        "label": "Ruban cortical",
+        "hint": "La surface piale et la surface white sont comparées en coupe.",
+        "groups": {
+            "cortex": (True, 0.48),
+            "white_matter": (True, 0.95),
+            "brainstem": (True, 0.55),
+            "cerebellum": (True, 0.48),
+        },
+        "clip": (True, "coronal", 50),
+        "view": "anterior",
+    },
+    "deep": {
+        "label": "Structures profondes",
+        "hint": "Le cortex devient un repère discret pour dégager les noyaux profonds.",
+        "groups": {
+            "cortex": (True, 0.10),
+            "white_matter": (True, 0.06),
+            "deep": (True, 0.98),
+            "ventricles": (True, 0.86),
+            "corpus_callosum": (True, 0.90),
+            "brainstem": (True, 0.92),
+            "cerebellum": (True, 0.38),
+        },
+        "clip": (True, "sagittal", 50),
+        "view": "lateral",
+    },
+    "ventricles": {
+        "label": "Ventricules",
+        "hint": "Le système ventriculaire est isolé dans un contexte anatomique léger.",
+        "groups": {
+            "cortex": (True, 0.07),
+            "white_matter": (True, 0.04),
+            "deep": (True, 0.18),
+            "ventricles": (True, 1.0),
+            "corpus_callosum": (True, 0.20),
+            "brainstem": (True, 0.28),
+        },
+        "clip": (True, "sagittal", 50),
+        "view": "lateral",
+    },
 }
 
 GROUP_ORDER = tuple(GROUP_LABELS)
@@ -126,12 +181,7 @@ class Explorer:
         self._bind_state()
 
     def _build_scene(self) -> None:
-        self.plotter.add_axes(
-            xlabel="Droite",
-            ylabel="Antérieur",
-            zlabel="Supérieur",
-            line_width=2,
-        )
+
         for index, part in enumerate(self.model.parts):
             key = f"{part.structure_id}:{part.side or 'centre'}:{index}"
             default_visible, default_opacity = GROUP_DEFAULTS[part.group]
@@ -150,6 +200,18 @@ class Explorer:
             self.parts_by_actor[key] = part
             self.original_meshes[key] = part.mesh
             self.actor_keys_by_structure[part.structure_id].append(key)
+
+        mesh_bounds = np.asarray(
+            [mesh.bounds for mesh in self.original_meshes.values()], dtype=float
+        )
+        self.scene_bounds = (
+            float(mesh_bounds[:, 0].min()),
+            float(mesh_bounds[:, 1].max()),
+            float(mesh_bounds[:, 2].min()),
+            float(mesh_bounds[:, 3].max()),
+            float(mesh_bounds[:, 4].min()),
+            float(mesh_bounds[:, 5].max()),
+        )
 
         self.plotter.camera_position = "xz"
         self.plotter.camera.azimuth = 20
@@ -178,6 +240,10 @@ class Explorer:
         state.clip_enabled = False
         state.clip_axis = "sagittal"
         state.clip_position = 50
+        state.clip_invert = False
+        state.explore_mode = "external"
+        state.explore_hint = EXPLORATION_MODES["external"]["hint"]
+        state.info_tab = "anatomy"
         state.model_mode = self.model.mode
         state.model_source = self.model.source
         state.model_warning = " ".join(self.model.warnings)
@@ -207,7 +273,12 @@ class Explorer:
             if lesson_step in LESSONS:
                 self.apply_lesson(lesson_step)
 
-        @state.change("clip_enabled", "clip_axis", "clip_position")
+        @state.change("explore_mode")
+        def _explore_mode(explore_mode: str, **_: Any) -> None:
+            if explore_mode in EXPLORATION_MODES:
+                self.apply_exploration_mode(explore_mode)
+
+        @state.change("clip_enabled", "clip_axis", "clip_position", "clip_invert")
         def _clip(**_: Any) -> None:
             self.apply_clip()
 
@@ -226,7 +297,9 @@ class Explorer:
         self.ctrl.show_lateral = lambda: self.set_view("lateral")
         self.ctrl.show_superior = lambda: self.set_view("superior")
         self.ctrl.reset_layers = self.reset_layers
-
+        self.ctrl.center_clip = self.center_clip
+        self.ctrl.invert_clip = self.invert_clip
+        self.ctrl.focus_selected = self.focus_selected
     def _make_group_callback(self, group: str) -> Any:
         def _callback(**_: Any) -> None:
             visible = bool(getattr(self.state, f"show_{group}"))
@@ -302,23 +375,88 @@ class Explorer:
         self.state.lesson_title = lesson["title"]
         self.state.lesson_text = lesson["text"]
 
-    def select_structure(self, identifier: str) -> None:
-        self._update_structure_panel(identifier)
+    def _replace_highlight(self, identifier: str) -> None:
         for actor in self.highlight_actors:
             self.plotter.remove_actor(actor, render=False)
         self.highlight_actors.clear()
         for key in self.actor_keys_by_structure.get(identifier, []):
             part = self.parts_by_actor[key]
+            highlighted_mesh = self._clipped_mesh(part.mesh)
             actor = self.plotter.add_mesh(
-                part.mesh,
+                highlighted_mesh,
                 name=f"highlight:{key}",
-                style="wireframe",
-                color="#fff4ad",
-                line_width=4,
-                opacity=0.9,
+                color="#ffd166",
+                opacity=0.58,
+                smooth_shading=True,
+                specular=0.05,
                 pickable=False,
+                show_edges=False,
             )
             self.highlight_actors.append(actor)
+
+    def select_structure(self, identifier: str) -> None:
+        self._update_structure_panel(identifier)
+        self._replace_highlight(identifier)
+        self._render()
+
+    def apply_exploration_mode(self, identifier: str) -> None:
+        mode = EXPLORATION_MODES[identifier]
+        selected_by_mode = {
+            "external": "cortex",
+            "ribbon": "white_matter",
+            "deep": "thalamus",
+            "ventricles": "ventricles",
+        }
+        configured_groups = mode["groups"]
+        for group in GROUP_ORDER:
+            visible, opacity = configured_groups.get(
+                group, (False, GROUP_DEFAULTS[group][1])
+            )
+            setattr(self.state, f"show_{group}", visible)
+            setattr(self.state, f"opacity_{group}", round(opacity * 100))
+        clip_enabled, clip_axis, clip_position = mode["clip"]
+        self.state.explore_hint = mode["hint"]
+        self.state.clip_enabled = clip_enabled
+        self.state.clip_axis = clip_axis
+        self.state.clip_position = clip_position
+        self.state.clip_invert = False
+        self.state.selected_structure = selected_by_mode[identifier]
+        self.set_view(mode["view"])
+        self.apply_clip()
+
+    def focus_selected(self) -> None:
+        identifier = self.state.selected_structure
+        keys = self.actor_keys_by_structure.get(identifier, [])
+        if not keys:
+            return
+        target_groups = {self.parts_by_actor[key].group for key in keys}
+        for group in GROUP_ORDER:
+            setattr(self.state, f"show_{group}", False)
+        if target_groups & {"deep", "ventricles", "corpus_callosum"}:
+            self.state.show_cortex = True
+            self.state.opacity_cortex = 8
+            self.state.show_white_matter = True
+            self.state.opacity_white_matter = 4
+        elif "white_matter" in target_groups:
+            self.state.show_cortex = True
+            self.state.opacity_cortex = 32
+        for group in target_groups:
+            setattr(self.state, f"show_{group}", True)
+            setattr(self.state, f"opacity_{group}", 100)
+        self.state.clip_enabled = False
+        self.apply_clip()
+        selected_bounds = np.asarray(
+            [self.original_meshes[key].bounds for key in keys], dtype=float
+        )
+        bounds = (
+            float(selected_bounds[:, 0].min()),
+            float(selected_bounds[:, 1].max()),
+            float(selected_bounds[:, 2].min()),
+            float(selected_bounds[:, 3].max()),
+            float(selected_bounds[:, 4].min()),
+            float(selected_bounds[:, 5].max()),
+        )
+        self.plotter.reset_camera(bounds=bounds)
         self._render()
 
     def apply_lesson(self, identifier: str) -> None:
@@ -375,45 +513,60 @@ class Explorer:
         self.state.selected_structure = lesson["structure"]
         self.apply_clip()
 
-    def apply_clip(self) -> None:
-        enabled = bool(self.state.clip_enabled)
+    def _clip_parameters(self) -> tuple[tuple[int, int, int], list[float]]:
         axis = self.state.clip_axis
-        position = float(self.state.clip_position) / 100
+        axis_index = {"sagittal": 0, "coronal": 1, "axial": 2}[axis]
         normal_by_axis = {
             "sagittal": (1, 0, 0),
             "coronal": (0, -1, 0),
             "axial": (0, 0, 1),
         }
-        axis_index = {"sagittal": 0, "coronal": 1, "axial": 2}[axis]
+        position = float(self.state.clip_position) / 100
+        low = self.scene_bounds[axis_index * 2]
+        high = self.scene_bounds[axis_index * 2 + 1]
+        coordinate = low + (high - low) * position
+        origin = [
+            (self.scene_bounds[0] + self.scene_bounds[1]) / 2,
+            (self.scene_bounds[2] + self.scene_bounds[3]) / 2,
+            (self.scene_bounds[4] + self.scene_bounds[5]) / 2,
+        ]
+        origin[axis_index] = coordinate
+        return normal_by_axis[axis], origin
+
+    def _clipped_mesh(self, mesh: pv.PolyData) -> pv.PolyData:
+        if not bool(self.state.clip_enabled):
+            return mesh
+        normal, origin = self._clip_parameters()
+        try:
+            return mesh.clip(
+                normal=normal,
+                origin=origin,
+                invert=bool(self.state.clip_invert),
+            )
+        except Exception:
+            return mesh
+
+    def apply_clip(self) -> None:
         for key, mesh in self.original_meshes.items():
             actor = self.plotter.renderer.actors.get(key)
-            if actor is None:
-                continue
-            if not enabled:
-                actor.mapper.dataset = mesh
-                continue
-            bounds = mesh.bounds
-            low = bounds[axis_index * 2]
-            high = bounds[axis_index * 2 + 1]
-            coordinate = low + (high - low) * position
-            center = list(mesh.center)
-            center[axis_index] = coordinate
-            try:
-                clipped = mesh.clip(
-                    normal=normal_by_axis[axis],
-                    origin=center,
-                    invert=False,
-                )
-                actor.mapper.dataset = clipped
-            except Exception:
-                actor.mapper.dataset = mesh
+            if actor is not None:
+                actor.mapper.dataset = self._clipped_mesh(mesh)
+        identifier = getattr(self.state, "selected_structure", None)
+        if identifier in STRUCTURES_BY_ID:
+            self._replace_highlight(identifier)
         self._render()
 
+    def center_clip(self) -> None:
+        self.state.clip_position = 50
+        self.apply_clip()
+
+    def invert_clip(self) -> None:
+        self.state.clip_invert = not bool(self.state.clip_invert)
+        self.apply_clip()
+
     def reset_layers(self) -> None:
-        for group, (visible, opacity) in GROUP_DEFAULTS.items():
-            setattr(self.state, f"show_{group}", visible)
-            setattr(self.state, f"opacity_{group}", round(opacity * 100))
-        self._render()
+        self.state.explore_mode = "external"
+        self.apply_exploration_mode("external")
 
     def reset_camera(self) -> None:
         self.plotter.reset_camera()
@@ -432,12 +585,14 @@ class Explorer:
     def _render(self) -> None:
         self.plotter.render()
         update = getattr(self.ctrl, "view_update", None)
-        if callable(update):
+        update_exists = getattr(update, "exists", None)
+        if callable(update) and (not callable(update_exists) or update_exists()):
             update()
 
     def build_ui(self) -> None:
         ctrl = self.ctrl
         with SinglePageLayout(self.server) as layout:
+            layout.icon.hide()
             layout.title.set_text("Comprendre FreeSurfer")
             with layout.toolbar:
                 v3.VChip(
@@ -455,145 +610,258 @@ class Explorer:
             with layout.content:
                 client.Style(
                     """
-                    .explorer-root { background: #f4f6f8; min-height: calc(100vh - 64px); }
-                    .control-column { max-height: calc(100vh - 64px); overflow-y: auto; }
-                    .viewer-column { background: #101923; min-height: 620px; }
-                    .info-block { border-left: 4px solid #d98b5f; }
-                    .measure-diagram {
-                      position: relative; height: 150px; overflow: hidden;
-                      background: linear-gradient(180deg, #dceef7 0 26%, #d99972 26% 56%,
-                        #eee4c8 56% 100%);
+                    :root {
+                      --ink: #17232d;
+                      --muted: #62717d;
+                      --line: #d9e1e7;
+                      --panel: #ffffff;
+                      --canvas: #142230;
+                      --accent: #0f6f7c;
+                      --accent-soft: #dceff1;
+                    }
+                    html, body, #app { overflow: hidden; }
+                    .explorer-grid {
+                      display: grid;
+                      grid-template-columns: minmax(300px, 340px) minmax(500px, 1fr) minmax(330px, 390px);
+                      height: calc(100vh - 64px);
+                      min-height: 640px;
+                      background: #edf1f4;
+                      color: var(--ink);
+                    }
+                    .side-panel {
+                      min-width: 0;
+                      overflow-y: auto;
+                      background: var(--panel);
+                      padding: 18px;
+                      scrollbar-color: #aab6bf transparent;
+                      scrollbar-width: thin;
+                    }
+                    .left-panel { border-right: 1px solid var(--line); }
+                    .right-panel { border-left: 1px solid var(--line); }
+                    .section-kicker {
+                      color: var(--accent);
+                      font-size: .72rem;
+                      font-weight: 800;
+                      letter-spacing: .08em;
+                      text-transform: uppercase;
+                    }
+                    .panel-title { font-size: 1.25rem; line-height: 1.2; margin: 3px 0 14px; }
+                    .section-title { font-size: .95rem; margin: 20px 0 8px; }
+                    .helper-text { color: var(--muted); font-size: .82rem; line-height: 1.4; }
+                    .mode-toggle {
+                      display: grid !important;
+                      grid-template-columns: 1fr 1fr;
+                      width: 100%;
+                      height: auto !important;
+                      gap: 7px;
+                      background: transparent !important;
+                      box-shadow: none !important;
+                    }
+                    .mode-toggle .v-btn {
+                      min-width: 0 !important;
+                      border: 1px solid #b9c7d0 !important;
+                      border-radius: 8px !important;
+                      text-transform: none;
+                      letter-spacing: 0;
+                    }
+                    .layer-control {
+                      margin-bottom: 7px;
+                      padding: 8px 10px 5px;
+                      border: 1px solid var(--line);
+                      border-radius: 9px;
+                      background: #fbfcfd;
+                    }
+                    .layer-heading { display: flex; align-items: center; gap: 6px; min-width: 0; }
+                    .layer-heading .v-input { flex: 1 1 auto; min-width: 0; }
+                    .opacity-value {
+                      flex: 0 0 auto;
+                      color: var(--muted);
+                      font-size: .72rem;
+                      font-variant-numeric: tabular-nums;
+                    }
+                    .layer-control .v-slider-track__background,
+                    .clip-controls .v-slider-track__background {
+                      opacity: 1 !important;
+                      background: #c3ced6 !important;
+                    }
+                    .layer-control .v-slider-track__fill,
+                    .clip-controls .v-slider-track__fill,
+                    .layer-control .v-slider-thumb__surface,
+                    .clip-controls .v-slider-thumb__surface {
+                      background: var(--accent) !important;
+                    }
+                    .layer-control .v-input--disabled { opacity: .48 !important; }
+                    .cut-card {
+                      border: 1px solid #b9d7db;
                       border-radius: 10px;
+                      padding: 10px 12px 12px;
+                      background: #f3fafb;
                     }
-                    .measure-diagram .pial, .measure-diagram .white {
-                      position: absolute; left: 8%; width: 84%; height: 28px;
-                      border-top: 4px solid #8c4e32; border-radius: 50%;
+                    .axis-toggle { width: 100%; }
+                    .axis-toggle .v-btn { flex: 1 1 0; min-width: 0; padding: 0 7px; }
+                    .viewer-shell {
+                      position: relative;
+                      min-width: 0;
+                      height: calc(100vh - 64px);
+                      min-height: 640px;
+                      overflow: hidden;
+                      background: var(--canvas);
                     }
-                    .measure-diagram .pial { top: 38px; }
-                    .measure-diagram .white { top: 83px; border-color: #b9aa81; }
-                    .measure-diagram .arrow {
-                      position: absolute; left: 50%; top: 53px; height: 43px;
-                      border-left: 3px solid #26384a;
+                    .vtk-container { width: 100%; height: 100%; }
+                    .viewer-instructions {
+                      position: absolute;
+                      z-index: 3;
+                      top: 14px;
+                      left: 14px;
+                      padding: 7px 10px;
+                      border: 1px solid rgba(255,255,255,.16);
+                      border-radius: 8px;
+                      color: #e9f2f6;
+                      background: rgba(8,18,28,.76);
+                      font-size: .78rem;
+                      pointer-events: none;
                     }
-                    .measure-diagram .arrow::before, .measure-diagram .arrow::after {
-                      content: ""; position: absolute; left: -6px; width: 9px; height: 9px;
-                      border-left: 3px solid #26384a; border-top: 3px solid #26384a;
+                    .viewer-mode {
+                      position: absolute;
+                      z-index: 3;
+                      left: 14px;
+                      bottom: 14px;
+                      max-width: 420px;
+                      padding: 9px 11px;
+                      border-left: 3px solid #5fc1cb;
+                      color: #e9f2f6;
+                      background: rgba(8,18,28,.80);
+                      font-size: .8rem;
+                      line-height: 1.35;
+                      pointer-events: none;
                     }
-                    .measure-diagram .arrow::before { top: 0; transform: rotate(45deg); }
-                    .measure-diagram .arrow::after { bottom: 0; transform: rotate(225deg); }
-                    .diagram-label { position: absolute; font-weight: 500; color: #26384a; }
-                    .label-pial { top: 12px; left: 10%; }
-                    .label-white { bottom: 8px; left: 10%; }
-                    .label-thickness { top: 66px; left: 54%; }
-                    .area-patch {
-                      position: absolute; left: 20%; top: 34px; width: 46%; height: 18px;
-                      background: rgba(255, 224, 92, .78); border: 2px solid #705f13;
-                      border-radius: 50%; transform: rotate(-3deg);
+                    .info-card {
+                      border: 1px solid var(--line);
+                      border-left: 4px solid #d98b5f;
+                      border-radius: 10px;
+                      padding: 15px;
+                      background: #fff;
                     }
-                    .volume-patch {
-                      position: absolute; left: 25%; top: 52px; width: 38%; height: 39px;
-                      background: rgba(217, 96, 62, .58); border: 2px solid #7b3526;
-                      transform: skewX(-12deg);
+                    .info-tabs { width: 100%; }
+                    .info-tabs .v-btn { flex: 1 1 0; }
+                    code {
+                      display: block;
+                      white-space: normal;
+                      overflow-wrap: anywhere;
+                      color: #33444f;
+                      background: #f3f5f7;
+                      border-radius: 5px;
+                      padding: 4px 6px;
                     }
-                    .deep-block {
-                      position: absolute; left: 37%; top: 49px; width: 78px; height: 58px;
-                      background: #8f73c5; border: 3px solid #48366f;
-                      border-radius: 46% 54% 49% 51%; box-shadow: inset -10px -8px 0 rgba(0,0,0,.12);
+                    @media (max-width: 1180px) {
+                      html, body, #app { overflow: auto; }
+                      .explorer-grid { grid-template-columns: 300px minmax(500px, 1fr); height: auto; }
+                      .right-panel { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
+                      .side-panel { max-height: none; }
                     }
-                    .etiv-envelope {
-                      position: absolute; left: 11%; top: 18px; width: 78%; height: 112px;
-                      border: 4px dashed #26384a; border-radius: 48%;
-                    }
-                    .global-brain {
-                      position: absolute; left: 24%; top: 39px; width: 52%; height: 75px;
-                      background: rgba(217, 139, 95, .66); border: 3px solid #8c4e32;
-                      border-radius: 48% 52% 44% 56%;
-                    }
-                    .vtk-container { min-height: 620px; height: calc(100vh - 64px); }
-                    @media (max-width: 960px) {
-                      .control-column { max-height: none; overflow: visible; }
-                      .viewer-column, .vtk-container { min-height: 520px; height: 520px; }
+                    @media (max-width: 820px) {
+                      .explorer-grid { display: flex; flex-direction: column; min-height: 0; }
+                      .viewer-shell { order: -1; height: 62vh; min-height: 460px; }
                     }
                     """
                 )
-                with v3.VContainer(fluid=True, classes="pa-0 explorer-root"):
-                    with v3.VRow(no_gutters=True):
-                        with v3.VCol(cols=12, md=3, classes="pa-3 control-column"):
-                            v3.VSelect(
-                                v_model=("lesson_step", "orientation"),
-                                items=("lesson_items",),
-                                item_title="title",
-                                item_value="value",
-                                label="Parcours guidé",
-                                density="compact",
-                                variant="outlined",
-                            )
-                            with v3.VAlert(
-                                type="info",
-                                variant="tonal",
-                                density="compact",
-                                classes="mb-3",
-                            ):
-                                html.Strong("{{ lesson_title }}")
-                                html.Div("{{ lesson_text }}", classes="mt-1")
+                with html.Div(classes="explorer-grid"):
+                    with html.Div(classes="side-panel left-panel"):
+                        html.Div("Exploration guidée", classes="section-kicker")
+                        html.H2("Choisir ce que l’on veut comprendre", classes="panel-title")
+                        v3.VSelect(
+                            v_model=("lesson_step", "orientation"),
+                            items=("lesson_items",),
+                            item_title="title",
+                            item_value="value",
+                            label="Parcours pédagogique",
+                            density="compact",
+                            variant="outlined",
+                            hide_details=True,
+                            classes="mb-3",
+                        )
+                        with v3.VAlert(type="info", variant="tonal", density="compact"):
+                            html.Strong("{{ lesson_title }}")
+                            html.Div("{{ lesson_text }}", classes="mt-1 text-body-2")
 
-                            html.H3("Couches", classes="mb-2")
-                            for group in GROUP_ORDER:
-                                with v3.VCard(
-                                    variant="flat",
-                                    classes="mb-2 pa-2",
-                                    color="surface-variant",
-                                ):
+                        html.H3("Vues intelligentes", classes="section-title")
+                        with v3.VBtnToggle(
+                            v_model=("explore_mode", "external"),
+                            mandatory=True,
+                            color="primary",
+                            variant="outlined",
+                            density="compact",
+                            classes="mode-toggle",
+                        ):
+                            v3.VBtn("Extérieur", value="external", size="small")
+                            v3.VBtn("Ruban", value="ribbon", size="small")
+                            v3.VBtn("Profond", value="deep", size="small")
+                            v3.VBtn("Ventricules", value="ventricles", size="small")
+                        html.P("{{ explore_hint }}", classes="helper-text mt-2 mb-0")
+
+                        html.H3("Couches", classes="section-title")
+                        html.P(
+                            "Active une couche puis règle sa transparence. Les vues ci-dessus font les réglages utiles automatiquement.",
+                            classes="helper-text mb-2",
+                        )
+                        for group in GROUP_ORDER:
+                            with html.Div(classes="layer-control"):
+                                with html.Div(classes="layer-heading"):
                                     v3.VSwitch(
                                         v_model=(f"show_{group}", GROUP_DEFAULTS[group][0]),
                                         label=GROUP_LABELS[group],
                                         density="compact",
                                         hide_details=True,
                                         color="primary",
+                                        inset=True,
                                     )
-                                    html.Div(
-                                        "Opacité: " f"{{{{ opacity_{group} }}}} %",
-                                        classes="text-caption mt-1",
+                                    html.Span(
+                                        f"{{{{ opacity_{group} }}}} %",
+                                        classes="opacity-value",
                                     )
-                                    v3.VSlider(
-                                        v_model=(
-                                            f"opacity_{group}",
-                                            round(GROUP_DEFAULTS[group][1] * 100),
-                                        ),
-                                        min=0,
-                                        max=100,
-                                        step=1,
-                                        density="compact",
-                                        hide_details=True,
-                                        disabled=(f"!show_{group}",),
-                                    )
+                                v3.VSlider(
+                                    v_model=(
+                                        f"opacity_{group}",
+                                        round(GROUP_DEFAULTS[group][1] * 100),
+                                    ),
+                                    min=0,
+                                    max=100,
+                                    step=1,
+                                    density="compact",
+                                    hide_details=True,
+                                    color="#0f6f7c",
+                                    track_color="#c3ced6",
+                                    thumb_label=True,
+                                    disabled=(f"!show_{group}",),
+                                )
 
-                            html.H3("Plan de coupe", classes="mt-4 mb-2")
+                        html.H3("Coupe anatomique", classes="section-title")
+                        with html.Div(classes="cut-card clip-controls"):
                             v3.VSwitch(
                                 v_model=("clip_enabled", False),
-                                label="Activer la coupe",
+                                label="Afficher une coupe",
                                 density="compact",
                                 hide_details=True,
                                 color="primary",
+                                inset=True,
                             )
-                            v3.VSelect(
+                            with v3.VBtnToggle(
                                 v_model=("clip_axis", "sagittal"),
-                                items=(
-                                    [
-                                        {"title": "Sagittale · gauche/droite", "value": "sagittal"},
-                                        {"title": "Coronale · avant/arrière", "value": "coronal"},
-                                        {"title": "Axiale · haut/bas", "value": "axial"},
-                                    ],
-                                ),
-                                item_title="title",
-                                item_value="value",
+                                mandatory=True,
+                                divided=True,
+                                color="primary",
                                 density="compact",
                                 variant="outlined",
-                                label="Orientation",
-                                classes="mt-3",
                                 disabled=("!clip_enabled",),
+                                classes="axis-toggle mt-3",
+                            ):
+                                v3.VBtn("Sagittale", value="sagittal", size="x-small")
+                                v3.VBtn("Coronale", value="coronal", size="x-small")
+                                v3.VBtn("Axiale", value="axial", size="x-small")
+                            html.Div(
+                                "Position du plan · {{ clip_position }} %",
+                                classes="helper-text mt-3",
                             )
-                            html.Div("Position: {{ clip_position }} %", classes="text-caption mt-2")
                             v3.VSlider(
                                 v_model=("clip_position", 50),
                                 min=2,
@@ -601,32 +869,70 @@ class Explorer:
                                 step=1,
                                 density="compact",
                                 hide_details=True,
+                                color="#0f6f7c",
+                                track_color="#c3ced6",
+                                thumb_label=True,
                                 disabled=("!clip_enabled",),
                             )
-                            v3.VBtn(
-                                "Réinitialiser les couches",
-                                variant="outlined",
-                                block=True,
-                                classes="mt-4",
-                                click=ctrl.reset_layers,
+                            with v3.VRow(dense=True, classes="mt-1"):
+                                with v3.VCol(cols=6):
+                                    v3.VBtn(
+                                        "Centrer",
+                                        block=True,
+                                        size="small",
+                                        variant="outlined",
+                                        disabled=("!clip_enabled",),
+                                        click=ctrl.center_clip,
+                                    )
+                                with v3.VCol(cols=6):
+                                    v3.VBtn(
+                                        "Autre moitié",
+                                        block=True,
+                                        size="small",
+                                        variant="outlined",
+                                        disabled=("!clip_enabled",),
+                                        click=ctrl.invert_clip,
+                                    )
+                        v3.VBtn(
+                            "Revenir à la vue extérieure",
+                            variant="text",
+                            block=True,
+                            classes="mt-3",
+                            click=ctrl.reset_layers,
+                        )
+
+                    with html.Div(classes="viewer-shell"):
+                        html.Div(
+                            "Glisser : tourner · Molette : zoomer · Clic : identifier",
+                            classes="viewer-instructions",
+                        )
+                        html.Div("{{ explore_hint }}", classes="viewer-mode")
+                        with html.Div(classes="vtk-container"):
+                            view = vtk.VtkLocalView(
+                                self.plotter.ren_win,
+                                picking_modes=("['click']",),
+                                click="pick_data = $event",
+                                style="width: 100%; height: 100%; min-height: 640px;",
                             )
+                            ctrl.view_update = view.update
+                            ctrl.view_reset_camera = view.reset_camera
 
-                        with v3.VCol(cols=12, md=6, classes="viewer-column"):
-                            with html.Div(
-                                classes="vtk-container",
-                                style="height: calc(100vh - 64px); min-height: 620px;",
-                            ):
-                                view = vtk.VtkLocalView(
-                                    self.plotter.ren_win,
-                                    picking_modes=("['click']",),
-                                    click="pick_data = $event",
-                                    style="width: 100%; height: 100%; min-height: 620px;",
-                                )
-                                ctrl.view_update = view.update
-                                ctrl.view_reset_camera = view.reset_camera
+                    with html.Div(classes="side-panel right-panel"):
+                        html.Div("Comprendre la sélection", classes="section-kicker")
+                        html.H2("Structure et mesure FreeSurfer", classes="panel-title")
+                        with v3.VBtnToggle(
+                            v_model=("info_tab", "anatomy"),
+                            mandatory=True,
+                            divided=True,
+                            color="primary",
+                            density="compact",
+                            variant="outlined",
+                            classes="info-tabs mb-4",
+                        ):
+                            v3.VBtn("Anatomie", value="anatomy", size="small")
+                            v3.VBtn("Mesures", value="measure", size="small")
 
-                        with v3.VCol(cols=12, md=3, classes="pa-3 control-column"):
-                            html.H3("Structure sélectionnée", classes="mb-2")
+                        with html.Div(v_if="info_tab === 'anatomy'"):
                             v3.VSelect(
                                 v_model=("selected_structure", "cortex"),
                                 items=("structure_items",),
@@ -635,31 +941,41 @@ class Explorer:
                                 label="Chercher une structure",
                                 density="compact",
                                 variant="outlined",
+                                hide_details=True,
+                                classes="mb-3",
                             )
-                            with v3.VCard(classes="pa-3 mb-4 info-block"):
-                                html.H2("{{ selected_name }}", classes="text-h6")
+                            v3.VBtn(
+                                "Isoler et centrer la structure",
+                                block=True,
+                                color="primary",
+                                variant="tonal",
+                                classes="mb-3",
+                                click=ctrl.focus_selected,
+                            )
+                            with html.Div(classes="info-card"):
+                                html.H2("{{ selected_name }}", classes="text-h5 mb-1")
                                 v3.VChip(
                                     "{{ selected_family }}",
                                     size="small",
                                     variant="tonal",
-                                    classes="my-2",
+                                    classes="mb-3",
                                 )
                                 with v3.VAlert(
                                     v_if="selected_family === 'Cortical'",
                                     type="info",
                                     variant="tonal",
                                     density="compact",
-                                    classes="mb-2",
+                                    classes="mb-3",
                                 ):
-                                    html.Span("NAPPE fine : surface + épaisseur + volume gris.")
+                                    html.Span("Nappe corticale : surface, épaisseur et volume gris.")
                                 with v3.VAlert(
                                     v_if="selected_family === 'Sous-cortical'",
-                                    type="warning",
+                                    type="info",
                                     variant="tonal",
                                     density="compact",
-                                    classes="mb-2",
+                                    classes="mb-3",
                                 ):
-                                    html.Span("BLOC profond : FreeSurfer rapporte son volume.")
+                                    html.Span("Structure profonde : FreeSurfer rapporte principalement son volume.")
                                 html.P("{{ selected_location }}", classes="mb-2")
                                 html.P("{{ selected_role }}", classes="mb-3")
                                 html.Div("Nom exact FreeSurfer", classes="text-caption")
@@ -671,7 +987,7 @@ class Explorer:
                                 html.Div("Géométrie affichée", classes="text-caption mt-3")
                                 html.Span("{{ selected_source }}")
 
-                            html.H3("Glossaire des mesures", classes="mb-2")
+                        with html.Div(v_if="info_tab === 'measure'"):
                             v3.VSelect(
                                 v_model=("selected_measure", "ThickAvg"),
                                 items=("measure_items",),
@@ -680,82 +996,28 @@ class Explorer:
                                 label="Choisir une mesure",
                                 density="compact",
                                 variant="outlined",
+                                hide_details=True,
+                                classes="mb-3",
                             )
-                            with v3.VCard(classes="pa-3 mb-3"):
-                                html.H2("{{ measure_label }}", classes="text-h6")
-                                with v3.VChipGroup(classes="my-2"):
+                            with html.Div(classes="info-card"):
+                                html.H2("{{ measure_label }}", classes="text-h5 mb-2")
+                                with v3.VChipGroup(classes="mb-3"):
                                     v3.VChip("{{ measure_unit }}", size="small", variant="tonal")
                                     v3.VChip("{{ measure_family }}", size="small", variant="tonal")
-                                html.P("{{ measure_explanation }}", classes="mb-2")
+                                html.P("{{ measure_explanation }}", classes="mb-3")
                                 html.Div("Dans le fichier", classes="text-caption")
                                 html.Code("{{ measure_source }}")
-                                html.Div("Ce que le dessin montre", classes="text-caption mt-3")
+                                html.Div("Interprétation visuelle", classes="text-caption mt-3")
                                 html.Span("{{ measure_visual }}")
 
-                            with html.Div(classes="measure-diagram"):
-                                html.Span(
-                                    "surface pial",
-                                    v_if="['ThickAvg', 'SurfArea', 'GrayVol'].includes(measure_mode)",
-                                    classes="diagram-label label-pial",
-                                )
-                                html.Div(
-                                    v_if="['ThickAvg', 'SurfArea', 'GrayVol'].includes(measure_mode)",
-                                    classes="pial",
-                                )
-                                html.Div(v_if="measure_mode === 'ThickAvg'", classes="arrow")
-                                html.Span(
-                                    "épaisseur",
-                                    v_if="measure_mode === 'ThickAvg'",
-                                    classes="diagram-label label-thickness",
-                                )
-                                html.Div(v_if="measure_mode === 'SurfArea'", classes="area-patch")
-                                html.Span(
-                                    "parcelle = aire",
-                                    v_if="measure_mode === 'SurfArea'",
-                                    classes="diagram-label label-thickness",
-                                )
-                                html.Div(v_if="measure_mode === 'GrayVol'", classes="volume-patch")
-                                html.Span(
-                                    "aire × hauteur",
-                                    v_if="measure_mode === 'GrayVol'",
-                                    classes="diagram-label label-thickness",
-                                )
-                                html.Div(
-                                    v_if="['ThickAvg', 'SurfArea', 'GrayVol'].includes(measure_mode)",
-                                    classes="white",
-                                )
-                                html.Span(
-                                    "surface white",
-                                    v_if="['ThickAvg', 'SurfArea', 'GrayVol'].includes(measure_mode)",
-                                    classes="diagram-label label-white",
-                                )
-                                html.Div(
-                                    v_if="measure_mode === 'structure_volume'",
-                                    classes="deep-block",
-                                )
-                                html.Span(
-                                    "bloc plein = volume",
-                                    v_if="measure_mode === 'structure_volume'",
-                                    classes="diagram-label label-pial",
-                                )
-                                html.Div(
-                                    v_if="measure_mode === 'eTIV' || measure_mode === 'to_eTIV'",
-                                    classes="etiv-envelope",
-                                )
-                                html.Div(
-                                    v_if="!['ThickAvg', 'SurfArea', 'GrayVol', 'structure_volume'].includes(measure_mode)",
-                                    classes="global-brain",
-                                )
-
-                            with v3.VAlert(
-                                type="warning",
-                                variant="tonal",
-                                density="compact",
-                                classes="mt-4",
-                            ):
-                                html.Div("{{ model_source }}", classes="font-weight-medium")
-                                html.Div("{{ model_warning }}", classes="text-caption mt-1")
-
+                        with v3.VAlert(
+                            type="info",
+                            variant="tonal",
+                            density="compact",
+                            classes="mt-4",
+                        ):
+                            html.Div("{{ model_source }}", classes="font-weight-medium")
+                            html.Div("{{ model_warning }}", classes="text-caption mt-1")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
