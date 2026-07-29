@@ -1,0 +1,9 @@
+numpy>=1.26,<3
+pyvista>=0.47,<0.49
+nilearn>=0.11,<0.13
+nibabel>=5.2,<6
+scikit-image>=0.24,<0.27
+trame>=3.7,<4
+trame-vtk>=2.8,<3
+trame-vuetify>=3.0,<4
+truststore>=0.10,<1

@@ -83,6 +83,12 @@ Phase-level documentation:
 - `pipelines/ds004332/phase4_compare_3bras/README.md`
 - `pipelines/ds004332/phase5_fidelity/README.md`
 
+Educational explorer:
+
+- `tools/freesurfer_anatomy_explorer/README.md` — interactive 3D guide to
+  cortical and subcortical anatomy, FreeSurfer surfaces, and morphometric
+  measure names. It uses a standard template and never loads study results.
+
 ## External Data
 
 Large files are not tracked in Git.
