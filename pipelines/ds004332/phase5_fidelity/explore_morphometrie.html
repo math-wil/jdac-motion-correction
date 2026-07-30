@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a6b9b708">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a2ad1699">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7819,7 +7819,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=69d58bab">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=17780af7">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -7835,7 +7835,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=30521de6">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=84bb08bd">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7844,9 +7844,9 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs jp-mod-noInput" id="cell-id=0f0009c5">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs jp-mod-noInput" id="cell-id=d76ea86f">
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3a77dd1e">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=582100b6">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7857,7 +7857,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=de3744bd">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=2e239426">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -7875,7 +7875,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=9be549b8">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c6e769b7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7884,7 +7884,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=5b14bb58">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=c71c833a">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -8089,18 +8089,30 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-OutputArea-output" data-mime-type="text/markdown" tabindex="0">
-<p><strong>Le motif.</strong> La <strong>surface</strong> sépare les mécanismes : elle s'effondre sous jdac (-10.3 % dès run1, lissage du bord gris/blanc), elle <strong>augmente</strong> sous aa×4 (+2.8 % sur run1, sur-affûtage), elle bouge à peine sous preproc. Le <strong>volume = épaisseur × surface</strong> : sous jdac les deux baissent et s'additionnent (volume -14.2 %), sous aa×4 l'épaisseur qui baisse et la surface qui monte se compensent (volume -1.1 %). L'épaisseur seule ne dirait pas <em>pourquoi</em> ; c'est la surface qui tranche.</p>
+<p><strong>Comment lire les trois mesures ensemble</strong> <em>(valeurs sur le scan immobile run1)</em></p>
+<ul>
+<li><strong>Volume = surface × épaisseur</strong>, donc en écart <code>% volume ≈ % surface + % épaisseur</code>.</li>
+<li><strong>L'épaisseur baisse dans les cinq conditions</strong> : seule, elle ne distingue pas les mécanismes.</li>
+<li><strong>La surface les distingue</strong> : jdac -10.3 % (lissage, bord gris/blanc flou), aa×4 +2.8 % (sur-affûtage, bords plus découpés), preproc -0.4 % (rééchantillonnage neutre).</li>
+<li><strong>Le volume est le bilan des deux</strong> : sous jdac elles baissent ensemble et s'additionnent (-14.2 %) ; sous aa×4 épaisseur en baisse et surface en hausse s'annulent (-1.1 %).</li>
+</ul>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-OutputArea-output" data-mime-type="text/markdown" tabindex="0">
-<p><strong>Ce qu'on en tire.</strong> <strong>preproc</strong> ne combat pas le mouvement, il colle au brut sur les scans bougés (ligne de base). <strong>jdac complet</strong> est pire que le brut partout, même sur le scan propre (volume -14.2 % sur run1) : il abîme une anatomie qui n'avait rien à corriger. <strong>aa×1</strong> (jdac sans débruiteur) divise par environ deux cette érosion (surface -2.0 % contre -10.3 % pour jdac) : le débruiteur est le principal coupable. <strong>aa×4</strong> donne la meilleure fidélité de volume (run3 -4.6 % contre -13.6 % au brut) mais par une distorsion épaisseur qui baisse et surface qui monte, à vérifier sujet par sujet, pas une restauration prouvée.</p>
+<p><strong>Ce qu'on en tire, condition par condition</strong></p>
+<ul>
+<li><strong>preproc</strong> : ne corrige pas le mouvement, il colle au brut sur les scans bougés. Ligne de base.</li>
+<li><strong>jdac complet</strong> : pire que le brut partout, même sur le scan immobile (-14.2 % de volume sur run1). Il déforme une anatomie qui n'avait rien à corriger.</li>
+<li><strong>aa×1</strong> (jdac sans débruiteur) : érosion divisée par ~2 (surface -2.0 % contre -10.3 % pour jdac). Le débruiteur est le principal coupable.</li>
+<li><strong>aa×4</strong> : meilleure fidélité de volume (run3 -4.6 % contre -13.6 % au brut), mais via épaisseur en baisse et surface en hausse qui se compensent. À vérifier sujet par sujet avant de conclure.</li>
+</ul>
 </div>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2ee3e4cf">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ff50808b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8109,7 +8121,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=292580a4">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=07582696">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -8196,7 +8208,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5077a719">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c9d87742">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8207,7 +8219,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=98842974">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noInput" id="cell-id=898262d1">
 <div class="jp-Cell-outputWrapper">
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
@@ -8225,7 +8237,7 @@ familles : aseg_global, aseg_region, cortical_region
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5456cded">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=68954f3e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

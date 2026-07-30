@@ -221,24 +221,21 @@ for titre, t in [("Épaisseur", tab_ep), ("Surface", tab_su), ("Volume cortical"
     display(t.round(1))
 
 display(Markdown(
-    "**Le motif.** La **surface** sépare les mécanismes : elle s'effondre sous jdac "
-    f"({tab_su.loc['jdac','still (run1)']:.1f} % dès run1, lissage du bord gris/blanc), elle **augmente** sous aa×4 "
-    f"({tab_su.loc['aa×4','still (run1)']:+.1f} % sur run1, sur-affûtage), elle bouge à peine sous preproc. "
-    "Le **volume = épaisseur × surface** : sous jdac les deux baissent et s'additionnent "
-    f"(volume {tab_vo.loc['jdac','still (run1)']:.1f} %), sous aa×4 l'épaisseur qui baisse et la surface qui monte se compensent "
-    f"(volume {tab_vo.loc['aa×4','still (run1)']:.1f} %). L'épaisseur seule ne dirait pas *pourquoi* ; c'est la surface qui tranche."))
+    "**Comment lire les trois mesures ensemble** *(valeurs sur le scan immobile run1)*\\n\\n"
+    "- **Volume = surface × épaisseur**, donc en écart `% volume ≈ % surface + % épaisseur`.\\n"
+    "- **L'épaisseur baisse dans les cinq conditions** : seule, elle ne distingue pas les mécanismes.\\n"
+    f"- **La surface les distingue** : jdac {tab_su.loc['jdac','still (run1)']:.1f} % (lissage, bord gris/blanc flou), "
+    f"aa×4 {tab_su.loc['aa×4','still (run1)']:+.1f} % (sur-affûtage, bords plus découpés), "
+    f"preproc {tab_su.loc['prep','still (run1)']:+.1f} % (rééchantillonnage neutre).\\n"
+    f"- **Le volume est le bilan des deux** : sous jdac elles baissent ensemble et s'additionnent ({tab_vo.loc['jdac','still (run1)']:.1f} %) ; "
+    f"sous aa×4 épaisseur en baisse et surface en hausse s'annulent ({tab_vo.loc['aa×4','still (run1)']:.1f} %)."))
 
 display(Markdown(
-    "**Ce qu'on en tire.** "
-    "**preproc** ne combat pas le mouvement, il colle au brut sur les scans bougés (ligne de base). "
-    "**jdac complet** est pire que le brut partout, même sur le scan propre "
-    f"(volume {tab_vo.loc['jdac','still (run1)']:.1f} % sur run1) : il abîme une anatomie qui n'avait rien à corriger. "
-    "**aa×1** (jdac sans débruiteur) divise par environ deux cette érosion "
-    f"(surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour jdac) : "
-    "le débruiteur est le principal coupable. "
-    "**aa×4** donne la meilleure fidélité de volume "
-    f"(run3 {tab_vo.loc['aa×4','shaking (run3)']:.1f} % contre {tab_vo.loc['brut','shaking (run3)']:.1f} % au brut) "
-    "mais par une distorsion épaisseur qui baisse et surface qui monte, à vérifier sujet par sujet, pas une restauration prouvée."))''')
+    "**Ce qu'on en tire, condition par condition**\\n\\n"
+    "- **preproc** : ne corrige pas le mouvement, il colle au brut sur les scans bougés. Ligne de base.\\n"
+    f"- **jdac complet** : pire que le brut partout, même sur le scan immobile ({tab_vo.loc['jdac','still (run1)']:.1f} % de volume sur run1). Il déforme une anatomie qui n'avait rien à corriger.\\n"
+    f"- **aa×1** (jdac sans débruiteur) : érosion divisée par ~2 (surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour jdac). Le débruiteur est le principal coupable.\\n"
+    f"- **aa×4** : meilleure fidélité de volume (run3 {tab_vo.loc['aa×4','shaking (run3)']:.1f} % contre {tab_vo.loc['brut','shaking (run3)']:.1f} % au brut), mais via épaisseur en baisse et surface en hausse qui se compensent. À vérifier sujet par sujet avant de conclure."))''')
 
     md("""### Vérification mathématique : volume ≈ surface × épaisseur
 
