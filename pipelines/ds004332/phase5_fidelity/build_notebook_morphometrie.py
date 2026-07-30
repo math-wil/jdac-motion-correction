@@ -243,7 +243,7 @@ display(Markdown(
     "**Ce qu'on en tire, condition par condition**\\n\\n"
     "- **preproc** : ne corrige pas le mouvement, il colle au brut sur les scans bougés. Ligne de base.\\n"
     f"- **jdac complet** : pire que le brut partout, même sur le scan immobile ({tab_vo.loc['jdac','still (run1)']:.1f} % de volume sur run1). Il déforme une anatomie qui n'avait rien à corriger.\\n"
-    f"- **aa×1** (jdac sans débruiteur) : érosion divisée par ~2 (surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour jdac). Le débruiteur est le principal coupable.\\n"
+    f"- **aa×1** (sans débruiteur, une passe anti-artefact) : érosion divisée par ~2 (surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour jdac). Cette variante change deux éléments à la fois : elle n'isole donc pas le rôle du débruiteur.\\n"
     f"- **aa×4** : meilleure fidélité de volume (run3 {tab_vo.loc['aa×4','shaking (run3)']:.1f} % contre {tab_vo.loc['brut','shaking (run3)']:.1f} % au brut), mais via épaisseur en baisse et surface en hausse qui se compensent. À vérifier sujet par sujet avant de conclure."))''')
 
     md("""### Vérification mathématique : volume ≈ surface × épaisseur
@@ -410,7 +410,7 @@ display(Markdown(
 
 - **Le mouvement seul** (ligne brut) amincit le cortex et réduit surface et volumes, de plus en plus fort de run-01 à run-03. C'est le dégât qu'un correcteur doit défaire sans toucher au scan immobile.
 - **preproc** ne combat pas le mouvement : il colle au brut sur les scans bougés (ligne de base).
-- **JDAC complet** abîme le scan propre (cortex : volume −14 % sur run-01 ; volumes aseg : erreur la plus forte) et ne récupère aucun volume bougé. Le **débruiteur** en est le principal responsable : sans lui (aa×1), l'érosion corticale est divisée par deux.
+- **JDAC complet** abîme le scan propre (cortex : volume −14 % sur run-01 ; volumes aseg : erreur la plus forte) et ne récupère aucun volume bougé. Les ablations limitent l'érosion, mais aa×1 retire le débruiteur **et** réduit le nombre de passes : son rôle propre reste à isoler.
 - **aa×4** donne la meilleure fidélité du **volume cortical**, mais par une compensation épaisseur↓/surface↑ propre à la nappe corticale. Cet avantage **ne se transmet pas au sous-cortical**, où aa×4 est parmi les pires. À vérifier sujet par sujet avant d'en conclure quoi que ce soit.
 - **Lecture des mesures** : l'épaisseur seule ne suffit pas (elle baisse partout) ; la surface révèle le mécanisme, et le total sous-cortical cache des noyaux qui bougent en sens opposés.""")
 
