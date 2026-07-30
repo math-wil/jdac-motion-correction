@@ -200,6 +200,46 @@ plt.show()
 if n_hors:
     display(Markdown(f"*Axes cadrés sur les boîtes et moustaches pour rester lisibles ; {n_hors} points extrêmes (outliers) sont volontairement hors cadre.*"))''')
 
+    md("""### Lecture chiffrée : médianes par condition et par consigne
+
+Les mêmes écarts, en médiane et en pourcentage, pour lire les nombres derrière les boîtes. La consigne sépare le scan immobile (still, run-01) des scans bougés (nodding run-02, shaking run-03). Rappel : `brut/run-01` vaut 0, la ligne `brut` mesure donc le dégât du **mouvement seul**, et un correcteur devrait rapprocher run-02/run-03 de 0 **sans déplacer run-01**.""")
+
+    code('''def _median_pct(family, metric, agg, pos=False):
+    per = distance_a_reference(par_acquisition(d, family, metric, agg, positive_only=pos))
+    per["pct"] = 100 * (per["value"] - per["ref"]) / per["ref"]
+    t = (per.groupby(["condition","consigne"], observed=True)["pct"]
+            .median().unstack("consigne").reindex(CONDITIONS)[["still","nodding","shaking"]])
+    t.index = [SHORT[c] for c in t.index]
+    t.columns = ["still (run1)", "nodding (run2)", "shaking (run3)"]
+    return t
+
+tab_ep = _median_pct("cortical_region", "thickness", "mean", pos=True)
+tab_su = _median_pct("cortical_region", "surface_area", "sum")
+tab_vo = _median_pct("cortical_region", "cortical_gray_volume", "sum")
+for titre, t in [("Épaisseur", tab_ep), ("Surface", tab_su), ("Volume cortical", tab_vo)]:
+    display(Markdown(f"**{titre} — médiane de l'écart à brut/run-01 (%)**"))
+    display(t.round(1))
+
+display(Markdown(
+    "**Le motif.** La **surface** sépare les mécanismes : elle s'effondre sous jdac "
+    f"({tab_su.loc['jdac','still (run1)']:.1f} % dès run1, lissage du bord gris/blanc), elle **augmente** sous aa×4 "
+    f"({tab_su.loc['aa×4','still (run1)']:+.1f} % sur run1, sur-affûtage), elle bouge à peine sous preproc. "
+    "Le **volume = épaisseur × surface** : sous jdac les deux baissent et s'additionnent "
+    f"(volume {tab_vo.loc['jdac','still (run1)']:.1f} %), sous aa×4 l'épaisseur qui baisse et la surface qui monte se compensent "
+    f"(volume {tab_vo.loc['aa×4','still (run1)']:.1f} %). L'épaisseur seule ne dirait pas *pourquoi* ; c'est la surface qui tranche."))
+
+display(Markdown(
+    "**Ce qu'on en tire.** "
+    "**preproc** ne combat pas le mouvement, il colle au brut sur les scans bougés (ligne de base). "
+    "**jdac complet** est pire que le brut partout, même sur le scan propre "
+    f"(volume {tab_vo.loc['jdac','still (run1)']:.1f} % sur run1) : il abîme une anatomie qui n'avait rien à corriger. "
+    "**aa×1** (jdac sans débruiteur) divise par environ deux cette érosion "
+    f"(surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour jdac) : "
+    "le débruiteur est le principal coupable. "
+    "**aa×4** donne la meilleure fidélité de volume "
+    f"(run3 {tab_vo.loc['aa×4','shaking (run3)']:.1f} % contre {tab_vo.loc['brut','shaking (run3)']:.1f} % au brut) "
+    "mais par une distorsion épaisseur qui baisse et surface qui monte, à vérifier sujet par sujet, pas une restauration prouvée."))''')
+
     md("""### Vérification mathématique : volume ≈ surface × épaisseur
 
 Le cortex est une **nappe** : son volume vaut à peu près `surface × épaisseur`, donc en pourcentage `% volume ≈ % surface + % épaisseur`. Ce tableau (sur le scan immobile) vérifie que les trois mesures corticales sont cohérentes entre elles, et pas seulement dans le même sens.""")
