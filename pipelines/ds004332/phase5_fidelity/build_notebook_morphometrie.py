@@ -164,7 +164,16 @@ def legende_consignes(fig):
     handles = [plt.Line2D([], [], marker="o", ls="", color=COLORS[c],
                label={"still":"run-01 immobile","nodding":"run-02 nodding","shaking":"run-03 shaking"}[c])
                for c in ["still","nodding","shaking"]]
-    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=11)''')
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=11)
+
+def _color(t, fmt="{:.1f}"):
+    """Colore un tableau d'écarts en % : rouge = baisse, bleu = hausse, centré sur 0."""
+    arr = t.to_numpy(dtype=float)
+    vmax = float(np.nanmax(np.abs(arr))) if arr.size else 1.0
+    vmax = vmax or 1.0
+    return (t.style.format(fmt)
+             .background_gradient(cmap="RdBu", vmin=-vmax, vmax=vmax, axis=None)
+             .set_properties(**{"text-align": "center"}))''')
 
     md("""## Partie 1 — Le cortex : épaisseur, surface, volume (trois mesures liées)
 
@@ -217,8 +226,8 @@ tab_ep = _median_pct("cortical_region", "thickness", "mean", pos=True)
 tab_su = _median_pct("cortical_region", "surface_area", "sum")
 tab_vo = _median_pct("cortical_region", "cortical_gray_volume", "sum")
 for titre, t in [("Épaisseur", tab_ep), ("Surface", tab_su), ("Volume cortical", tab_vo)]:
-    display(Markdown(f"**{titre} — médiane de l'écart à brut/run-01 (%)**"))
-    display(t.round(1))
+    display(Markdown(f"**{titre} — médiane de l'écart à brut/run-01 (%)** — rouge = baisse, bleu = hausse"))
+    display(_color(t))
 
 display(Markdown(
     "**Comment lire les trois mesures ensemble** *(valeurs sur le scan immobile run1)*\\n\\n"
@@ -256,7 +265,8 @@ verif = pd.DataFrame({
 }).reindex(CONDITIONS)
 verif["% épaisseur + % surface"] = verif["% épaisseur"] + verif["% surface"]
 verif = verif[["% épaisseur", "% surface", "% épaisseur + % surface", "% volume"]]
-display(verif.round(1))
+verif.index = [SHORT[c] for c in verif.index]
+display(_color(verif))
 display(Markdown(
     "**Lecture.** La colonne « % épaisseur + % surface » doit approcher « % volume », et c'est le cas ici : "
     "les trois mesures corticales sont cohérentes, pas seulement dans le même sens. Quand surface et épaisseur "
