@@ -213,8 +213,8 @@ if n_hors:
 
 Les mêmes écarts, en médiane et en pourcentage, pour lire les nombres derrière les boîtes. La consigne sépare le scan immobile (still, run-01) des scans bougés (nodding run-02, shaking run-03). Rappel : `brut/run-01` vaut 0, la ligne `brut` mesure donc le dégât du **mouvement seul**, et un correcteur devrait rapprocher run-02/run-03 de 0 **sans déplacer run-01**.""")
 
-    code('''def _median_pct(family, metric, agg, pos=False):
-    per = distance_a_reference(par_acquisition(d, family, metric, agg, positive_only=pos))
+    code('''def _median_pct(family, metric, agg, pos=False, region=None):
+    per = distance_a_reference(par_acquisition(d, family, metric, agg, region=region, positive_only=pos))
     per["pct"] = 100 * (per["value"] - per["ref"]) / per["ref"]
     t = (per.groupby(["condition","consigne"], observed=True)["pct"]
             .median().unstack("consigne").reindex(CONDITIONS)[["still","nodding","shaking"]])
@@ -319,14 +319,100 @@ plt.show()
 if n_hors:
     display(Markdown(f"*Axes cadrés sur les boîtes et moustaches ; {n_hors} points extrêmes sont hors cadre.*"))''')
 
-    md("""## Constats permis par les données
+    md("""### Lecture chiffrée : le total et ses composantes
 
-Cette page est descriptive, à lire directement sur les deux parties :
+Les mêmes écarts en médiane et en pourcentage. Le premier tableau suit `SubCortGrayVol` par consigne (comme en partie 1) ; le second détaille les huit composantes sur le scan immobile, pour voir si le total vient de tous les noyaux ou de quelques-uns.""")
 
-- **Partie 1, le cortex :** épaisseur, surface et volume cortical bougent-ils dans le même sens sur `run-01` et sur les scans bougés, et le tableau confirme-t-il `% volume ≈ % surface + % épaisseur` ?
-- **Partie 2, le sous-cortical :** le déplacement de `SubCortGrayVol` vient-il de tous les noyaux ou de quelques-uns (thalamus, putamen…) ?
+    code('''tab_scv = _median_pct("aseg_global", "volume", "sum", region="SubCortGrayVol")
+display(Markdown("**SubCortGrayVol (total) — médiane de l'écart à brut/run-01 (%)** — rouge = baisse, bleu = hausse"))
+display(_color(tab_scv))
 
-Aucune conclusion forte n'est écrite automatiquement ici. La surface et le volume cortical n'apparaissent que si `morphometry_long.csv` a été produit avec les mesures `aparc` des cinq conditions.""")
+def _comp_run01_pct():
+    rows = {}
+    for nom, motif in COMPOSANTES:
+        sub = aseg_reg[aseg_reg["region"].str.contains(motif, na=False)]
+        per = (sub.groupby(["subject","run","condition"], observed=True)["value"]
+                  .sum().reset_index(name="value"))
+        per = distance_a_reference(per)
+        per["pct"] = 100 * (per["value"] - per["ref"]) / per["ref"]
+        rows[nom] = (per[per["run"] == "run-01"].groupby("condition", observed=True)["pct"]
+                     .median().reindex(CONDITIONS))
+    t = pd.DataFrame(rows).T
+    t.columns = [SHORT[c] for c in t.columns]
+    return t
+
+comp = _comp_run01_pct()
+display(Markdown("**Les 8 composantes sur le scan immobile (run-01) — médiane de l'écart (%)**"))
+display(_color(comp))
+
+display(Markdown(
+    "**Comment lire le sous-cortical**\\n\\n"
+    f"- **L'offset immobile est modéré** : sur run1, SubCortGrayVol baisse de {tab_scv.loc['jdac','still (run1)']:.1f} % (jdac), "
+    f"{tab_scv.loc['aa×1','still (run1)']:.1f} % (aa×1), {tab_scv.loc['aa×4','still (run1)']:.1f} % (aa×4), "
+    "bien moins que le volume cortical (jdac −14,2 %). Le lissage de JDAC touche surtout la frontière corticale, moins les noyaux profonds.\\n"
+    f"- **Le total cache des sens opposés** : sous jdac, caudé ({comp.loc['Noyau caudé','jdac']:.1f} %), putamen ({comp.loc['Putamen','jdac']:.1f} %) "
+    f"et accumbens ({comp.loc['Accumbens','jdac']:.1f} %) rétrécissent, mais thalamus ({comp.loc['Thalamus','jdac']:+.1f} %) et "
+    f"diencéphale ventral ({comp.loc['Diencéphale ventral','jdac']:+.1f} %) grossissent. Le total est un net, il faut lire les composantes.\\n"
+    f"- **Sur les scans bougés, tous aggravent la perte** : à shaking, jdac {tab_scv.loc['jdac','shaking (run3)']:.1f} % et "
+    f"aa×4 {tab_scv.loc['aa×4','shaking (run3)']:.1f} % contre brut {tab_scv.loc['brut','shaking (run3)']:.1f} %. Aucun ne récupère les volumes.\\n"
+    f"- **Différence clé avec le cortex** : aa×4, le meilleur sur le volume cortical, est ici parmi les pires ({tab_scv.loc['aa×4','shaking (run3)']:.1f} % à shaking). "
+    "Son avantage venait de la compensation épaisseur↓/surface↑, propre à la nappe corticale ; les noyaux n'ont pas de surface à gonfler."))''')
+
+    md("""### Lien avec le notebook aseg : magnitude de l'écart (non signée)
+
+Jusqu'ici l'écart est **signé** (sens et quantité). L'ancien notebook aseg regardait autre chose : la **magnitude** de l'erreur, `|T − R| / R`, toujours positive, moyennée sur les volumes de structures. C'est « de combien on s'éloigne du brut », sans le sens. Ci-dessous, cette même lentille recalculée depuis la source unifiée (structures aseg à base > 100 mm³), pour relier l'ancien et le nouveau.""")
+
+    code('''ref_v = (aseg_reg[(aseg_reg.condition=="brut") & (aseg_reg.run=="run-01")]
+         [["subject","region","value"]].rename(columns={"value":"ref"}))
+m = aseg_reg.merge(ref_v, on=["subject","region"])
+m = m[m["ref"] > 100]
+m["err"] = 100 * (m["value"] - m["ref"]).abs() / m["ref"]
+fid = (m.groupby(["subject","run","condition"], observed=True)["err"]
+         .median().reset_index(name="err_pct"))
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.6), sharey=True)
+for ax, run in zip(axes, ["run-01","run-02","run-03"]):
+    data = [fid[(fid["run"]==run) & (fid["condition"]==c)]["err_pct"].dropna().values for c in CONDITIONS]
+    bp = ax.boxplot(data, positions=range(len(CONDITIONS)), widths=0.6, patch_artist=True,
+                    showfliers=False, medianprops={"color":"black","lw":1.3})
+    for b in bp["boxes"]:
+        b.set(facecolor="lightsteelblue", alpha=0.75)
+    ax.set_xticks(range(len(CONDITIONS)))
+    ax.set_xticklabels([SHORT[c] for c in CONDITIONS], rotation=20)
+    ax.set_title(f"{run} ({CONSIGNE[run]})", fontsize=12)
+    ax.grid(axis="y", alpha=0.18)
+axes[0].set_ylabel("erreur médiane |T−R|/R (%)")
+axes[0].set_ylim(bottom=0)
+fig.suptitle("Fidélité des volumes aseg : magnitude de l'écart au brut/run-01 (non signée)", y=1.03)
+fig.tight_layout()
+plt.show()
+
+fid_tab = (fid.groupby(["condition","run"], observed=True)["err_pct"].median()
+             .unstack()[["run-01","run-02","run-03"]].reindex(CONDITIONS))
+fid_tab.index = [SHORT[c] for c in fid_tab.index]
+fid_tab.columns = ["still (run1)", "nodding (run2)", "shaking (run3)"]
+display(Markdown("**Erreur médiane |T−R|/R sur les volumes (%)** — plus foncé = plus loin du brut"))
+display(fid_tab.round(1).style.format("{:.1f}")
+        .background_gradient(cmap="Reds", axis=None)
+        .set_properties(**{"text-align": "center"}))
+
+display(Markdown(
+    "**Le lien avec l'ancien notebook**\\n\\n"
+    f"- **Scan immobile (rien à corriger)** : jdac ajoute le plus d'erreur ({fid_tab.loc['jdac','still (run1)']:.1f} %), "
+    f"devant aa×4 ({fid_tab.loc['aa×4','still (run1)']:.1f} %) et aa×1 ({fid_tab.loc['aa×1','still (run1)']:.1f} %) ; "
+    f"preproc reste le plus proche ({fid_tab.loc['prep','still (run1)']:.1f} %). JDAC déforme le plus une anatomie propre.\\n"
+    f"- **Scans bougés** : le brut est déjà à {fid_tab.loc['brut','shaking (run3)']:.1f} % (shaking), et **toutes** les conditions font pire "
+    f"(jdac {fid_tab.loc['jdac','shaking (run3)']:.1f} %). Corriger ne rapproche pas les volumes du brut immobile.\\n"
+    "- **Le pont entre les deux notebooks** : le signe (plus haut sur cette page) donne la direction, la magnitude (ici) donne l'ampleur. "
+    "Même message que sur le cortex : JDAC abîme le scan propre, aucune condition ne restaure les volumes bougés."))''')
+
+    md("""## Constats
+
+- **Le mouvement seul** (ligne brut) amincit le cortex et réduit surface et volumes, de plus en plus fort de run-01 à run-03. C'est le dégât qu'un correcteur doit défaire sans toucher au scan immobile.
+- **preproc** ne combat pas le mouvement : il colle au brut sur les scans bougés (ligne de base).
+- **JDAC complet** abîme le scan propre (cortex : volume −14 % sur run-01 ; volumes aseg : erreur la plus forte) et ne récupère aucun volume bougé. Le **débruiteur** en est le principal responsable : sans lui (aa×1), l'érosion corticale est divisée par deux.
+- **aa×4** donne la meilleure fidélité du **volume cortical**, mais par une compensation épaisseur↓/surface↑ propre à la nappe corticale. Cet avantage **ne se transmet pas au sous-cortical**, où aa×4 est parmi les pires. À vérifier sujet par sujet avant d'en conclure quoi que ce soit.
+- **Lecture des mesures** : l'épaisseur seule ne suffit pas (elle baisse partout) ; la surface révèle le mécanisme, et le total sous-cortical cache des noyaux qui bougent en sens opposés.""")
 
     nb["cells"] = cells
     nb["metadata"]["kernelspec"] = {"display_name":"Python (cortical-motion)",
