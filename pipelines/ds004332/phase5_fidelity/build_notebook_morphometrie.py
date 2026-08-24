@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """Génère le notebook morphométrique descriptif : explore_morphometrie.ipynb
 
-But (réunion du 24 juillet) : suivre l'anatomie de la matière grise en deux parties.
-Partie 1, le cortex : épaisseur, surface et volume corticaux côte à côte, mesures liées
-(volume ≈ surface × épaisseur), avec un tableau qui le vérifie. Partie 2, le sous-cortical :
-SubCortGrayVol et ses huit composantes (thalamus, caudé, putamen, pallidum, hippocampe,
-amygdale, accumbens, VentralDC). Chaque panneau utilise exactement la définition du boxplot
-d'épaisseur de la phase 4 : distance SIGNÉE de chaque acquisition à brut/run-01 du même
+But : présenter de façon compacte les effets des cinq conditions sur quatre mesures
+morphométriques principales, puis le test demandé entre still, nodding et shaking.
+Chaque panneau utilise la distance SIGNÉE de chaque acquisition à brut/run-01 du même
 sujet (valeur(acquisition) − valeur(brut/run-01)).
 
 Source unique : results/ds004332/phase5_fidelity/morphometry_long.csv, produite par
@@ -38,10 +35,10 @@ distance = valeur(acquisition) − valeur(**brut/run-01 du même sujet**)
 - Distance **signée** : négatif = la mesure a diminué par rapport au brut immobile, positif = elle a augmenté. `brut/run-01` vaut donc 0 par construction.
 - Unité statistique : une valeur par acquisition ; les boxplots montrent la distribution entre sujets.
 
-**Deux compartiments de matière grise, deux parties.** La matière grise n'est pas d'un seul tenant ; la page suit donc l'anatomie, pas une liste de mesures à plat :
+**Deux compartiments de matière grise.**
 
-- **Partie 1 — le cortex** (l'écorce pliée en surface). On le décrit par trois mesures qui ne sont pas indépendantes : **épaisseur** (moyenne des régions, mm), **surface** (somme des régions, mm²) et **volume cortical** (somme des régions, mm³). Comme le cortex est une nappe, `volume ≈ surface × épaisseur` : les trois racontent une seule histoire, et un tableau le vérifie.
-- **Partie 2 — les noyaux gris profonds** (thalamus, putamen, hippocampe…). Masses pleines au centre du cerveau : elles n'ont ni surface ni épaisseur, seulement un **volume**. Leur total est `SubCortGrayVol` (mm³, mesure globale de `aseg.stats`), décomposé ensuite structure par structure.
+- **Cortex :** épaisseur (mm), surface (mm²) et volume cortical (mm³). Elles sont liées : `volume ≈ surface × épaisseur`.
+- **Noyaux gris profonds :** masses centrales décrites par leur volume. Leur total est `SubCortGrayVol` (mm³).
 
 L'agrégation diffère selon la mesure et c'est volontaire : moyenne pour l'épaisseur (comme en phase 4), somme pour surface et volumes (une surface et un volume sont additifs, le total est la mesure globale naturelle).
 
@@ -51,7 +48,7 @@ L'agrégation diffère selon la mesure et c'est volontaire : moyenne pour l'épa
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from IPython.display import display, Markdown
+from IPython.display import display, Markdown, HTML
 
 HOME = Path.home()
 def find_repo():
@@ -97,9 +94,9 @@ print(f"{len(d):,} lignes | {d['subject'].nunique()} sujets | "
       f"{d[['subject','run','condition']].drop_duplicates().shape[0]} acquisitions")
 print("familles :", ", ".join(sorted(d["family"].unique())))''')
 
-    md("""## Outils communs
+    md("""## Méthode commune
 
-Deux fonctions réutilisées par toutes les figures : agréger une mesure par acquisition, puis calculer la distance signée à `brut/run-01`. Le boxplot est identique en forme à celui de la phase 4 (une couleur par consigne, points par sujet, ligne de référence à 0).""")
+Toutes les figures utilisent la même référence individuelle et la même convention de signe. Les fonctions ci-dessous ne produisent aucune analyse supplémentaire ; elles garantissent seulement que les quatre mesures sont calculées de façon identique.""")
 
     code('''def par_acquisition(d, family, metric, agg, region=None, positive_only=False):
     """Une valeur par (sujet, run, condition) : agg des régions d'une mesure."""
@@ -210,9 +207,9 @@ plt.show()
 if n_hors:
     display(Markdown(f"*Axes cadrés sur les boîtes et moustaches pour rester lisibles ; {n_hors} points extrêmes (outliers) sont volontairement hors cadre.*"))''')
 
-    md("""### Lecture chiffrée : médianes par condition et par consigne
+    md("""### Résultats corticaux
 
-Les mêmes écarts, en médiane et en pourcentage, pour lire les nombres derrière les boîtes. La consigne sépare le scan immobile (still, run-01) des scans bougés (nodding run-02, shaking run-03). Rappel : `brut/run-01` vaut 0, la ligne `brut` mesure donc le dégât du **mouvement seul**, et un correcteur devrait rapprocher run-02/run-03 de 0 **sans déplacer run-01**.""")
+Le tableau résume les boxplots en pourcentage de la référence individuelle. `brut/run-01` vaut 0 par construction. Un correcteur utile devrait rapprocher les scans bougés de 0 **sans déplacer le scan still**.""")
 
     code('''def _median_pct(family, metric, agg, pos=False, region=None):
     per = distance_a_reference(par_acquisition(d, family, metric, agg, region=region, positive_only=pos))
@@ -226,60 +223,26 @@ Les mêmes écarts, en médiane et en pourcentage, pour lire les nombres derriè
 tab_ep = _median_pct("cortical_region", "thickness", "mean", pos=True)
 tab_su = _median_pct("cortical_region", "surface_area", "sum")
 tab_vo = _median_pct("cortical_region", "cortical_gray_volume", "sum")
-for titre, t in [("Épaisseur", tab_ep), ("Surface", tab_su), ("Volume cortical", tab_vo)]:
-    display(Markdown(f"**{titre} — médiane de l'écart à brut/run-01 (%)** — rouge = baisse, bleu = hausse"))
-    display(_color(t))
+
+resume_cortex = pd.concat(
+    {"Épaisseur": tab_ep, "Surface": tab_su, "Volume cortical": tab_vo},
+    names=["Mesure", "Traitement"],
+)
+display(Markdown("**Écart médian à brut/run-01 (%)** — rouge = baisse, bleu = hausse"))
+display(_color(resume_cortex))
 
 display(Markdown(
-    "**Comment lire les trois mesures ensemble** *(valeurs sur le scan immobile run1)*\\n\\n"
-    "- **Volume = surface × épaisseur**, donc en écart `% volume ≈ % surface + % épaisseur`.\\n"
-    "- **L'épaisseur baisse dans les cinq conditions** : seule, elle ne distingue pas les mécanismes.\\n"
-    f"- **La surface les distingue** : jdac {tab_su.loc['jdac','still (run1)']:.1f} % (lissage, bord gris/blanc flou), "
-    f"aa×4 {tab_su.loc['aa×4','still (run1)']:+.1f} % (sur-affûtage, bords plus découpés), "
-    f"preproc {tab_su.loc['prep','still (run1)']:+.1f} % (rééchantillonnage neutre).\\n"
-    f"- **Le volume est le bilan des deux** : sous jdac elles baissent ensemble et s'additionnent ({tab_vo.loc['jdac','still (run1)']:.1f} %) ; "
-    f"sous aa×4 épaisseur en baisse et surface en hausse s'annulent ({tab_vo.loc['aa×4','still (run1)']:.1f} %)."))
-
-display(Markdown(
-    "**Ce qu'on en tire, condition par condition**\\n\\n"
-    "- **preproc** : ne corrige pas le mouvement, il colle au brut sur les scans bougés. Ligne de base.\\n"
-    f"- **jdac complet** : pire que le brut partout, même sur le scan immobile ({tab_vo.loc['jdac','still (run1)']:.1f} % de volume sur run1). Il déforme une anatomie qui n'avait rien à corriger.\\n"
-    f"- **aa×1** (sans débruiteur, une passe anti-artefact) : érosion divisée par ~2 (surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour jdac). Cette variante change deux éléments à la fois : elle n'isole donc pas le rôle du débruiteur.\\n"
-    f"- **aa×4** : meilleure fidélité de volume (run3 {tab_vo.loc['aa×4','shaking (run3)']:.1f} % contre {tab_vo.loc['brut','shaking (run3)']:.1f} % au brut), mais via épaisseur en baisse et surface en hausse qui se compensent. À vérifier sujet par sujet avant de conclure."))''')
-
-    md("""### Vérification mathématique : volume ≈ surface × épaisseur
-
-Le cortex est une **nappe** : son volume vaut à peu près `surface × épaisseur`, donc en pourcentage `% volume ≈ % surface + % épaisseur`. Ce tableau (sur le scan immobile) vérifie que les trois mesures corticales sont cohérentes entre elles, et pas seulement dans le même sens.""")
-
-    code('''def _pct_run01(family, metric, agg, pos=False):
-    p = par_acquisition(d, family, metric, agg, positive_only=pos)
-    ref = p[(p.condition == "brut") & (p.run == "run-01")][["subject","value"]].rename(columns={"value":"ref"})
-    p = p.merge(ref, on="subject")
-    p = p[p.run == "run-01"]
-    p["pct"] = 100 * (p.value - p.ref) / p.ref
-    return p.groupby("condition", observed=True)["pct"].median()
-
-verif = pd.DataFrame({
-    "% épaisseur": _pct_run01("cortical_region", "thickness", "mean", pos=True),
-    "% surface":   _pct_run01("cortical_region", "surface_area", "sum"),
-    "% volume":    _pct_run01("cortical_region", "cortical_gray_volume", "sum"),
-}).reindex(CONDITIONS)
-verif["% épaisseur + % surface"] = verif["% épaisseur"] + verif["% surface"]
-verif = verif[["% épaisseur", "% surface", "% épaisseur + % surface", "% volume"]]
-verif.index = [SHORT[c] for c in verif.index]
-display(_color(verif))
-display(Markdown(
-    "**Lecture.** La colonne « % épaisseur + % surface » doit approcher « % volume », et c'est le cas ici : "
-    "les trois mesures corticales sont cohérentes, pas seulement dans le même sens. Quand surface et épaisseur "
-    "baissent ensemble (ex. JDAC), le volume baisse davantage car les deux effets s'additionnent ; quand elles "
-    "partent en sens opposés (surface qui monte, épaisseur qui baisse), le volume bouge peu. Cette relation ne "
-    "vaut que pour le cortex (une nappe) ; `SubCortGrayVol` est un volume de noyaux profonds, sans surface ni épaisseur."))''')
+    "**Lecture principale**\\n\\n"
+    f"- Sur le scan **still**, JDAC déplace déjà le volume cortical de {tab_vo.loc['jdac','still (run1)']:.1f} % : il modifie une image qui nécessite peu de correction.\\n"
+    f"- **aa×1** limite cette déformation (surface {tab_su.loc['aa×1','still (run1)']:.1f} % contre {tab_su.loc['jdac','still (run1)']:.1f} % pour JDAC), mais cette variante change à la fois le débruiteur et le nombre de passes.\\n"
+    f"- **aa×4** paraît meilleure sur le volume cortical en shaking ({tab_vo.loc['aa×4','shaking (run3)']:.1f} %), mais l'épaisseur baisse pendant que la surface augmente : les erreurs se compensent.\\n"
+    "- L'épaisseur seule ne suffit donc pas. Les trois mesures doivent être lues ensemble (`volume ≈ surface × épaisseur`)."))''')
 
     md("""## Partie 2 — Les noyaux gris profonds (le sous-cortical)
 
 Au centre du cerveau, sous le cortex, se trouvent des masses grises pleines. Elles n'ont ni surface ni épaisseur, seulement un **volume**. FreeSurfer en fait le total `SubCortGrayVol`, qui est **exactement la somme de huit structures** (gauche + droit) : thalamus, noyau caudé, putamen, pallidum, hippocampe, amygdale, noyau accumbens et diencéphale ventral (VentralDC).
 
-**Question posée.** Le déplacement global de `SubCortGrayVol` vient-il de tous les noyaux ou de quelques-uns ? Le premier panneau montre le total, les huit suivants sa décomposition.
+**Question posée.** Les traitements préservent-ils le volume sous-cortical total ? Les huit structures détaillées restent disponibles dans un tableau repliable, sans neuf boxplots supplémentaires.
 
 **Comment lire.** Volumes bilatéraux (gauche + droit) en mm³, même distance signée à brut/run-01. Sous 0 = structure plus petite qu'au brut immobile ; au-dessus = plus grande. Contrairement au cortex, aucune relation `surface × épaisseur` ici : ce ne sont que des volumes.""")
 
@@ -295,30 +258,15 @@ Au centre du cerveau, sous le cortex, se trouvent des masses grises pleines. Ell
 ]
 aseg_reg = d[d["family"] == "aseg_region"].copy()
 
-# Panneaux : le total SubCortGrayVol d'abord, puis ses huit composantes (G+D).
-PANNEAUX = [("SubCortGrayVol (total)", None)] + COMPOSANTES
-fig, axes = plt.subplots(3, 3, figsize=(16, 12))
-n_hors = 0
-for ax, (titre, motif) in zip(axes.flat, PANNEAUX):
-    if motif is None:
-        per = par_acquisition(d, "aseg_global", "volume", "sum", region="SubCortGrayVol")
-        titre_ax = titre
-    else:
-        sub = aseg_reg[aseg_reg["region"].str.contains(motif, na=False)]
-        if sub.empty:
-            ax.set_title(titre + " (absent de aseg)", fontsize=12); ax.set_axis_off(); continue
-        per = (sub.groupby(["subject","run","condition"], observed=True)["value"]
-                  .sum().reset_index(name="value"))
-        titre_ax = titre + " (G+D)"
-    if per.empty:
-        ax.set_title(titre_ax + " (données absentes)", fontsize=12); ax.set_axis_off(); continue
-    n_hors += box_distance(ax, distance_a_reference(per), titre_ax, "mm³")
-fig.suptitle("Sous-cortical : SubCortGrayVol et ses huit composantes, distance signée à brut/run-01", y=1.0)
-fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+per_subcort = par_acquisition(d, "aseg_global", "volume", "sum", region="SubCortGrayVol")
+fig, ax = plt.subplots(figsize=(8.5, 5))
+n_hors = box_distance(ax, distance_a_reference(per_subcort), "SubCortGrayVol", "mm³")
+fig.suptitle("Sous-cortical : distance signée à brut/run-01", y=0.98)
+fig.tight_layout(rect=[0, 0.10, 1, 0.94])
 legende_consignes(fig)
 plt.show()
 if n_hors:
-    display(Markdown(f"*Axes cadrés sur les boîtes et moustaches ; {n_hors} points extrêmes sont hors cadre.*"))''')
+    display(Markdown(f"*Axe cadré sur les boîtes et moustaches ; {n_hors} points extrêmes sont hors cadre.*"))''')
 
     md("""### Lecture chiffrée : le total et ses composantes
 
@@ -343,37 +291,29 @@ def _comp_run01_pct():
     return t
 
 comp = _comp_run01_pct()
-display(Markdown("**Les 8 composantes sur le scan immobile (run-01) — médiane de l'écart (%)**"))
-display(_color(comp))
+display(HTML(
+    "<details><summary><b>Voir les huit structures sur le scan still</b></summary>"
+    + comp.round(1).to_html() + "</details>"
+))
 
 display(Markdown(
-    "**Comment lire le sous-cortical**\\n\\n"
-    f"- **L'offset immobile est modéré** : sur run1, SubCortGrayVol baisse de {tab_scv.loc['jdac','still (run1)']:.1f} % (jdac), "
-    f"{tab_scv.loc['aa×1','still (run1)']:.1f} % (aa×1), {tab_scv.loc['aa×4','still (run1)']:.1f} % (aa×4), "
-    "bien moins que le volume cortical (jdac −14,2 %). Le lissage de JDAC touche surtout la frontière corticale, moins les noyaux profonds.\\n"
-    f"- **Le total cache des sens opposés** : sous jdac, caudé ({comp.loc['Noyau caudé','jdac']:.1f} %), putamen ({comp.loc['Putamen','jdac']:.1f} %) "
-    f"et accumbens ({comp.loc['Accumbens','jdac']:.1f} %) rétrécissent, mais thalamus ({comp.loc['Thalamus','jdac']:+.1f} %) et "
-    f"diencéphale ventral ({comp.loc['Diencéphale ventral','jdac']:+.1f} %) grossissent. Le total est un net, il faut lire les composantes.\\n"
-    f"- **Sur les scans bougés, tous aggravent la perte** : à shaking, jdac {tab_scv.loc['jdac','shaking (run3)']:.1f} % et "
-    f"aa×4 {tab_scv.loc['aa×4','shaking (run3)']:.1f} % contre brut {tab_scv.loc['brut','shaking (run3)']:.1f} %. Aucun ne récupère les volumes.\\n"
-    f"- **Différence clé avec le cortex** : aa×4, le meilleur sur le volume cortical, est ici parmi les pires ({tab_scv.loc['aa×4','shaking (run3)']:.1f} % à shaking). "
-    "Son avantage venait de la compensation épaisseur↓/surface↑, propre à la nappe corticale ; les noyaux n'ont pas de surface à gonfler."))''')
+    "**Résultats sous-corticaux**\\n\\n"
+    f"- JDAC modifie déjà le scan still : SubCortGrayVol {tab_scv.loc['jdac','still (run1)']:.1f} %.\\n"
+    f"- En shaking, toutes les conditions restent sous la référence : brut {tab_scv.loc['brut','shaking (run3)']:.1f} %, JDAC {tab_scv.loc['jdac','shaking (run3)']:.1f} %, aa×4 {tab_scv.loc['aa×4','shaking (run3)']:.1f} %.\\n"
+    "- Le total masque des structures qui changent dans des sens opposés ; le détail est conservé pour vérification, mais ne constitue pas la conclusion principale.\\n"
+    "- L'avantage apparent de aa×4 sur le volume cortical ne se retrouve donc pas dans les noyaux profonds."))''')
 
-    md("""## Test statistique demandé : still, nodding, shaking
+    md("""## Le mouvement modifie-t-il encore les mesures après traitement ?
 
-**Ce que mesure un t-test apparié.** Pour un même sujet, on compare deux de ses propres acquisitions. Par exemple, pour `nodding − still` :
+**But du test demandé.** Les boxplots suggèrent un ordre entre still, nodding et shaking. Le test vérifie si ces écarts sont reproductibles entre sujets, au lieu de reposer sur une impression visuelle.
 
-`différence du sujet = écart signé en nodding − écart signé en still`
+Un test apparié compare chaque sujet à lui-même :
 
-Le test demande si la **différence moyenne entre sujets** est différente de 0. Il ne mesure donc ni la « qualité » absolue d'une image, ni si un correcteur est meilleur : il répond uniquement à « les deux états de mouvement donnent-ils des valeurs différentes chez les mêmes sujets ? ».
+`différence du sujet = mesure en shaking − mesure en still`
 
-Il y a **trois** états (`still`, `nodding`, `shaking`), donc un seul t-test ne suffit pas. Pour chaque mesure et chaque traitement, le tableau fait :
+Comme il y a **trois** états, l'analyse fait d'abord un test global à mesures répétées, puis les trois comparaisons appariées (`nodding − still`, `shaking − still`, `shaking − nodding`) avec correction de Holm.
 
-1. une ANOVA à mesures répétées, qui teste la différence globale entre les trois états ;
-2. seulement si ce test global est significatif après correction, trois t-tests appariés : `nodding − still`, `shaking − still`, `shaking − nodding` ;
-3. une correction de Holm des p-values pour éviter de déclarer des différences par hasard.
-
-**Données testées.** Ce sont les mêmes écarts signés que dans les boxplots, toujours par rapport à `brut/run-01` du même sujet. Ainsi, une différence négative dans une colonne signifie que le second état a une mesure plus basse que le premier. Les quatre mesures sont les mesures principales ; aucune p-value n'est calculée ici pour chacune des huit structures sous-corticales.""")
+**Interprétation.** Une différence négative signifie que la mesure baisse avec le mouvement. Ce test dit si le mouvement reste associé à la morphométrie **dans une condition donnée**. Il ne classe pas directement les correcteurs ; ce classement demandera ensuite un contraste `traitement − preproc` sur le même run.""")
 
     code('''from scipy import stats
 
@@ -493,71 +433,47 @@ tests["Test global (ANOVA RM)"] = tests.apply(
 tests = tests[["Mesure", "Traitement", "n sujets", "Test global (ANOVA RM)",
                "nodding − still", "shaking − still", "shaking − nodding"]]
 
+import re
+
+def _cellule_principale(texte):
+    if texte.startswith("non testé"):
+        return "test global NS"
+    m = re.match(r"Δ ([^[]+) \\[[^]]+\\] ([^;]+); p Holm (.+)", texte)
+    return f"Δ {m.group(1)} {m.group(2)} ; p {m.group(3)}" if m else texte
+
+principal = tests.pivot(index="Mesure", columns="Traitement", values="shaking − still")
+principal = principal.reindex(index=[m[0] for m in TESTS_PRIMAIRES], columns=[SHORT[c] for c in CONDITIONS])
+principal = principal.map(_cellule_principale)
 display(Markdown(
-    "**Tableau de tests.** `Δ` est la différence moyenne appariée, suivie de son IC95 %. "
-    "Une p-value Holm < 0,05 indique une différence compatible avec un effet de la consigne, "
-    "après correction des comparaisons. Une conclusion sur l'efficacité d'un correcteur demandera ensuite "
-    "la comparaison directe avec `preproc` sur les scans nodding et shaking."))
-display(tests.style.set_properties(**{"text-align": "left"}))
+    "**Résultat principal : shaking − still.** `Δ` est la différence moyenne appariée. "
+    "Une p-value Holm < 0,05 signifie que la différence résiste à la correction des comparaisons."))
+display(principal.style.set_properties(**{"text-align": "center", "font-size": "90%"}))
 
-display(Markdown(
-    "*Contrôle à faire avant interprétation finale : regarder la distribution des différences sujet par sujet. "
-    "Si une comparaison est dominée par des valeurs extrêmes ou très asymétrique, elle sera confirmée par un Wilcoxon apparié.*"))''')
-    md("""### Lien avec le notebook aseg : magnitude de l'écart (non signée)
-
-Jusqu'ici l'écart est **signé** (sens et quantité). L'ancien notebook aseg regardait autre chose : la **magnitude** de l'erreur, `|T − R| / R`, toujours positive, moyennée sur les volumes de structures. C'est « de combien on s'éloigne du brut », sans le sens. Ci-dessous, cette même lentille recalculée depuis la source unifiée (structures aseg à base > 100 mm³), pour relier l'ancien et le nouveau.""")
-
-    code('''ref_v = (aseg_reg[(aseg_reg.condition=="brut") & (aseg_reg.run=="run-01")]
-         [["subject","region","value"]].rename(columns={"value":"ref"}))
-m = aseg_reg.merge(ref_v, on=["subject","region"])
-m = m[m["ref"] > 100]
-m["err"] = 100 * (m["value"] - m["ref"]).abs() / m["ref"]
-fid = (m.groupby(["subject","run","condition"], observed=True)["err"]
-         .median().reset_index(name="err_pct"))
-
-fig, axes = plt.subplots(1, 3, figsize=(15, 4.6), sharey=True)
-for ax, run in zip(axes, ["run-01","run-02","run-03"]):
-    data = [fid[(fid["run"]==run) & (fid["condition"]==c)]["err_pct"].dropna().values for c in CONDITIONS]
-    bp = ax.boxplot(data, positions=range(len(CONDITIONS)), widths=0.6, patch_artist=True,
-                    showfliers=False, medianprops={"color":"black","lw":1.3})
-    for b in bp["boxes"]:
-        b.set(facecolor="lightsteelblue", alpha=0.75)
-    ax.set_xticks(range(len(CONDITIONS)))
-    ax.set_xticklabels([SHORT[c] for c in CONDITIONS], rotation=20)
-    ax.set_title(f"{run} ({CONSIGNE[run]})", fontsize=12)
-    ax.grid(axis="y", alpha=0.18)
-axes[0].set_ylabel("erreur médiane |T−R|/R (%)")
-axes[0].set_ylim(bottom=0)
-fig.suptitle("Fidélité des volumes aseg : magnitude de l'écart au brut/run-01 (non signée)", y=1.03)
-fig.tight_layout()
-plt.show()
-
-fid_tab = (fid.groupby(["condition","run"], observed=True)["err_pct"].median()
-             .unstack()[["run-01","run-02","run-03"]].reindex(CONDITIONS))
-fid_tab.index = [SHORT[c] for c in fid_tab.index]
-fid_tab.columns = ["still (run1)", "nodding (run2)", "shaking (run3)"]
-display(Markdown("**Erreur médiane |T−R|/R sur les volumes (%)** — plus foncé = plus loin du brut"))
-display(fid_tab.round(1).style.format("{:.1f}")
-        .background_gradient(cmap="Reds", axis=None)
-        .set_properties(**{"text-align": "center"}))
+def _delta(mesure, condition, apres="shaking", avant="still"):
+    wide, _ = details[(mesure, condition)]
+    return float((wide[apres] - wide[avant]).mean())
 
 display(Markdown(
-    "**Le lien avec l'ancien notebook**\\n\\n"
-    f"- **Scan immobile (rien à corriger)** : jdac ajoute le plus d'erreur ({fid_tab.loc['jdac','still (run1)']:.1f} %), "
-    f"devant aa×4 ({fid_tab.loc['aa×4','still (run1)']:.1f} %) et aa×1 ({fid_tab.loc['aa×1','still (run1)']:.1f} %) ; "
-    f"preproc reste le plus proche ({fid_tab.loc['prep','still (run1)']:.1f} %). JDAC déforme le plus une anatomie propre.\\n"
-    f"- **Scans bougés** : le brut est déjà à {fid_tab.loc['brut','shaking (run3)']:.1f} % (shaking), et **toutes** les conditions font pire "
-    f"(jdac {fid_tab.loc['jdac','shaking (run3)']:.1f} %). Corriger ne rapproche pas les volumes du brut immobile.\\n"
-    "- **Le pont entre les deux notebooks** : le signe (plus haut sur cette page) donne la direction, la magnitude (ici) donne l'ampleur. "
-    "Même message que sur le cortex : JDAC abîme le scan propre, aucune condition ne restaure les volumes bougés."))''')
+    "**Ce que les tests montrent**\\n\\n"
+    "- Dans le brut et le preproc, le mouvement réduit les quatre mesures : le biais morphométrique attendu est bien détecté.\\n"
+    f"- JDAC atténue la baisse d'épaisseur en shaking (Δ {_delta('Épaisseur corticale','jdac'):.3f} mm, contre {_delta('Épaisseur corticale','preproc'):.3f} mm en preproc), "
+    f"mais accentue la baisse de SubCortGrayVol (Δ {_delta('SubCortGrayVol','jdac'):.0f} mm³, contre {_delta('SubCortGrayVol','preproc'):.0f} mm³).\\n"
+    f"- aa×4 inverse l'épaisseur (Δ {_delta('Épaisseur corticale','jdac_nodenoise'):+.3f} mm) alors que surface et volumes baissent encore : cela indique une compensation entre mesures, pas une restauration anatomique démontrée.\\n"
+    "- Conclusion du test : aucune condition n'annule de façon cohérente l'effet du mouvement sur toutes les mesures."))
 
-    md("""## Constats
+display(HTML(
+    "<details><summary><b>Voir le tableau statistique complet (test global, trois paires et IC95 %)</b></summary>"
+    + tests.to_html(index=False) + "</details>"
+))
+display(Markdown(
+    "*Les différences sujet par sujet sont parfois asymétriques. Les tailles d'effet et IC95 % restent donc prioritaires ; "
+    "un Wilcoxon apparié sert de contrôle de sensibilité pour les conclusions limites.*"))''')
+    md("""## Conclusion
 
-- **Le mouvement seul** (ligne brut) amincit le cortex et réduit surface et volumes, de plus en plus fort de run-01 à run-03. C'est le dégât qu'un correcteur doit défaire sans toucher au scan immobile.
-- **preproc** ne combat pas le mouvement : il colle au brut sur les scans bougés (ligne de base).
-- **JDAC complet** abîme le scan propre (cortex : volume −14 % sur run-01 ; volumes aseg : erreur la plus forte) et ne récupère aucun volume bougé. Les ablations limitent l'érosion, mais aa×1 retire le débruiteur **et** réduit le nombre de passes : son rôle propre reste à isoler.
-- **aa×4** donne la meilleure fidélité du **volume cortical**, mais par une compensation épaisseur↓/surface↑ propre à la nappe corticale. Cet avantage **ne se transmet pas au sous-cortical**, où aa×4 est parmi les pires. À vérifier sujet par sujet avant d'en conclure quoi que ce soit.
-- **Lecture des mesures** : l'épaisseur seule ne suffit pas (elle baisse partout) ; la surface révèle le mécanisme, et le total sous-cortical cache des noyaux qui bougent en sens opposés.""")
+- Le mouvement diminue épaisseur, surface, volume cortical et `SubCortGrayVol` dans le brut et le preproc.
+- JDAC atténue l'effet apparent sur l'épaisseur, mais pas sur toutes les mesures : il accentue notamment la baisse sous-corticale et modifie déjà le scan still.
+- aa×4 produit une compensation épaisseur↓/surface↑ ; un volume cortical proche de la référence ne suffit donc pas à conclure à une anatomie restaurée.
+- Le test apparié confirme un effet du mouvement dans chaque condition. Il ne classe pas encore les correcteurs : l'étape suivante est une comparaison directe de chaque méthode à `preproc` sur les mêmes scans.""")
 
     nb["cells"] = cells
     nb["metadata"]["kernelspec"] = {"display_name":"Python (cortical-motion)",

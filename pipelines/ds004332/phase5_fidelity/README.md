@@ -6,7 +6,7 @@ Analyse descriptive côte à côte de l'épaisseur, de la surface, du volume cor
 
 - Source compilée unique, **versionnée dans le dépôt** (utilisable depuis GitHub, sans `derivatives`) : `results/ds004332/phase5_fidelity/morphometry_long.csv` (+ `morphometry_completeness.csv`). Table longue : `subject, run, condition, family, hemi, region, metric, value, unit`, familles `cortical_region` (thickness/surface_area/cortical_gray_volume, depuis `aparc.stats`), `aseg_global` (dont `SubCortGrayVol`) et `aseg_region`. La colonne `source_file` (chemins Narval) a été retirée.
 - Produite par `extract_morphometry_stats.py` sur Narval (lit `aseg.stats` + `lh/rh.aparc.stats` des 5 conditions ; chemins par défaut = dossiers `*_rigid` de Narval), puis rapatriée par `rsync`.
-- Notebook `explore_morphometrie.ipynb` (généré par `build_notebook_morphometrie.py`), export `explore_morphometrie.html` : figure principale (4 mesures globales), figure sous-corticale (thalamus, hippocampe, putamen, ventricule latéral) et contrôle `SubCortGrayVol` sujet par sujet. Descriptif seulement, sans Agitation ni test.
+- Notebook `explore_morphometrie.ipynb` (généré par `build_notebook_morphometrie.py`), export `explore_morphometrie.html` : boxplots comparables pour épaisseur, surface, volume cortical et `SubCortGrayVol`, puis test global à mesures répétées et comparaisons appariées entre still, nodding et shaking. Aucune analyse Agitation.
 
 Pour régénérer et exécuter depuis le dépôt (le CSV suffit, pas besoin de `derivatives`) :
 
