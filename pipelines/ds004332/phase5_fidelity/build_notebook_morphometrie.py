@@ -10,7 +10,8 @@ d'épaisseur de la phase 4 : distance SIGNÉE de chaque acquisition à brut/run-
 sujet (valeur(acquisition) − valeur(brut/run-01)).
 
 Source unique : results/ds004332/phase5_fidelity/morphometry_long.csv, produite par
-extract_morphometry_stats.py. Aucune analyse Agitation, aucun test, aucune p-value.
+extract_morphometry_stats.py. Aucune analyse Agitation. Un bloc statistique ciblé teste
+l'effet des trois consignes de mouvement sur les quatre mesures principales.
 """
 
 from pathlib import Path
@@ -44,7 +45,7 @@ distance = valeur(acquisition) − valeur(**brut/run-01 du même sujet**)
 
 L'agrégation diffère selon la mesure et c'est volontaire : moyenne pour l'épaisseur (comme en phase 4), somme pour surface et volumes (une surface et un volume sont additifs, le total est la mesure globale naturelle).
 
-**Source unique** : `results/ds004332/phase5_fidelity/morphometry_long.csv`, produite par `extract_morphometry_stats.py` (une seule table pour les cinq conditions). Aucun modèle Agitation, aucun test, aucune p-value : analyse descriptive seulement.""")
+**Source unique** : `results/ds004332/phase5_fidelity/morphometry_long.csv`, produite par `extract_morphometry_stats.py` (une seule table pour les cinq conditions). Aucun modèle Agitation. Le dernier bloc ajoute uniquement le test demandé sur les trois consignes de mouvement.""")
 
     code('''from pathlib import Path
 import numpy as np
@@ -358,6 +359,150 @@ display(Markdown(
     f"- **Différence clé avec le cortex** : aa×4, le meilleur sur le volume cortical, est ici parmi les pires ({tab_scv.loc['aa×4','shaking (run3)']:.1f} % à shaking). "
     "Son avantage venait de la compensation épaisseur↓/surface↑, propre à la nappe corticale ; les noyaux n'ont pas de surface à gonfler."))''')
 
+    md("""## Test statistique demandé : still, nodding, shaking
+
+**Ce que mesure un t-test apparié.** Pour un même sujet, on compare deux de ses propres acquisitions. Par exemple, pour `nodding − still` :
+
+`différence du sujet = écart signé en nodding − écart signé en still`
+
+Le test demande si la **différence moyenne entre sujets** est différente de 0. Il ne mesure donc ni la « qualité » absolue d'une image, ni si un correcteur est meilleur : il répond uniquement à « les deux états de mouvement donnent-ils des valeurs différentes chez les mêmes sujets ? ».
+
+Il y a **trois** états (`still`, `nodding`, `shaking`), donc un seul t-test ne suffit pas. Pour chaque mesure et chaque traitement, le tableau fait :
+
+1. une ANOVA à mesures répétées, qui teste la différence globale entre les trois états ;
+2. seulement si ce test global est significatif après correction, trois t-tests appariés : `nodding − still`, `shaking − still`, `shaking − nodding` ;
+3. une correction de Holm des p-values pour éviter de déclarer des différences par hasard.
+
+**Données testées.** Ce sont les mêmes écarts signés que dans les boxplots, toujours par rapport à `brut/run-01` du même sujet. Ainsi, une différence négative dans une colonne signifie que le second état a une mesure plus basse que le premier. Les quatre mesures sont les mesures principales ; aucune p-value n'est calculée ici pour chacune des huit structures sous-corticales.""")
+
+    code('''from scipy import stats
+
+MOUVEMENTS = ["still", "nodding", "shaking"]
+PAIRES = [
+    ("nodding − still", "nodding", "still"),
+    ("shaking − still", "shaking", "still"),
+    ("shaking − nodding", "shaking", "nodding"),
+]
+
+TESTS_PRIMAIRES = [
+    ("Épaisseur corticale", "mm",
+     par_acquisition(d, "cortical_region", "thickness", "mean", positive_only=True)),
+    ("Surface corticale", "mm²",
+     par_acquisition(d, "cortical_region", "surface_area", "sum")),
+    ("Volume cortical", "mm³",
+     par_acquisition(d, "cortical_region", "cortical_gray_volume", "sum")),
+    ("SubCortGrayVol", "mm³",
+     par_acquisition(d, "aseg_global", "volume", "sum", region="SubCortGrayVol")),
+]
+
+def holm(p_values):
+    """Correction de Holm ; NaN reste NaN."""
+    p = np.asarray(p_values, dtype=float)
+    out = np.full(p.shape, np.nan)
+    keep = np.flatnonzero(np.isfinite(p))
+    if not len(keep):
+        return out
+    order = keep[np.argsort(p[keep])]
+    running = 0.0
+    n = len(order)
+    for rank, idx in enumerate(order):
+        running = max(running, (n - rank) * p[idx])
+        out[idx] = min(1.0, running)
+    return out
+
+def anova_rm_3(wide):
+    """ANOVA à un facteur répété, trois états ; sans dépendance statsmodels."""
+    x = wide[MOUVEMENTS].to_numpy(dtype=float)
+    n, k = x.shape
+    if n < 2 or np.isclose(np.var(x), 0):
+        return np.nan, np.nan, np.nan, np.nan
+    grand = x.mean()
+    ss_total = ((x - grand) ** 2).sum()
+    ss_mouvement = n * ((x.mean(axis=0) - grand) ** 2).sum()
+    ss_sujet = k * ((x.mean(axis=1) - grand) ** 2).sum()
+    ss_erreur = ss_total - ss_mouvement - ss_sujet
+    df1, df2 = k - 1, (n - 1) * (k - 1)
+    if ss_erreur <= np.finfo(float).eps:
+        return np.nan, df1, df2, np.nan
+    f = (ss_mouvement / df1) / (ss_erreur / df2)
+    return f, df1, df2, stats.f.sf(f, df1, df2)
+
+def _p(p):
+    if not np.isfinite(p):
+        return "—"
+    return "< 0,001" if p < 0.001 else f"= {p:.3f}".replace(".", ",")
+
+def _contraste(wide, apres, avant, unite):
+    diff = wide[apres] - wide[avant]
+    n = len(diff)
+    t, p = stats.ttest_rel(wide[apres], wide[avant], nan_policy="omit")
+    moyenne = diff.mean()
+    se = stats.sem(diff, nan_policy="omit")
+    if n > 1 and np.isfinite(se):
+        borne = stats.t.ppf(0.975, n - 1) * se
+        ic = (moyenne - borne, moyenne + borne)
+    else:
+        ic = (np.nan, np.nan)
+    decimals = 3 if unite == "mm" else 0
+    fmt = f"{{:.{decimals}f}}"
+    texte = f"Δ {fmt.format(moyenne)} [{fmt.format(ic[0])} ; {fmt.format(ic[1])}] {unite}"
+    return texte, p
+
+rows, details = [], {}
+for mesure, unite, per_brut in TESTS_PRIMAIRES:
+    per = distance_a_reference(per_brut)
+    for condition in CONDITIONS:
+        wide = (per[per["condition"] == condition]
+                .pivot(index="subject", columns="consigne", values="dist")
+                .reindex(columns=MOUVEMENTS).dropna())
+        f, df1, df2, p_global = anova_rm_3(wide)
+        rows.append({
+            "Mesure": mesure,
+            "condition_code": condition,
+            "Traitement": SHORT[condition],
+            "n sujets": len(wide),
+            "F": f,
+            "df2": df2,
+            "p globale brute": p_global,
+        })
+        details[(mesure, condition)] = (wide, unite)
+
+tests = pd.DataFrame(rows)
+tests["p globale Holm"] = holm(tests["p globale brute"])
+for nom, _, _ in PAIRES:
+    tests[nom] = "non testé : test global non significatif"
+
+for idx, row in tests.iterrows():
+    if not np.isfinite(row["p globale Holm"]) or row["p globale Holm"] >= 0.05:
+        continue
+    wide, unite = details[(row["Mesure"], row["condition_code"])]
+    textes, ps = [], []
+    for nom, apres, avant in PAIRES:
+        texte, p = _contraste(wide, apres, avant, unite)
+        textes.append(texte)
+        ps.append(p)
+    p_holm = holm(ps)
+    for (nom, _, _), texte, p_corr in zip(PAIRES, textes, p_holm):
+        tests.loc[idx, nom] = f"{texte}; p Holm {_p(p_corr)}"
+
+tests["Test global (ANOVA RM)"] = tests.apply(
+    lambda r: (f"F(2, {int(r['df2'])}) = {r['F']:.2f}; p Holm {_p(r['p globale Holm'])}"
+               if np.isfinite(r["F"]) else "non calculable"),
+    axis=1,
+)
+tests = tests[["Mesure", "Traitement", "n sujets", "Test global (ANOVA RM)",
+               "nodding − still", "shaking − still", "shaking − nodding"]]
+
+display(Markdown(
+    "**Tableau de tests.** `Δ` est la différence moyenne appariée, suivie de son IC95 %. "
+    "Une p-value Holm < 0,05 indique une différence compatible avec un effet de la consigne, "
+    "après correction des comparaisons. Une conclusion sur l'efficacité d'un correcteur demandera ensuite "
+    "la comparaison directe avec `preproc` sur les scans nodding et shaking."))
+display(tests.style.set_properties(**{"text-align": "left"}))
+
+display(Markdown(
+    "*Contrôle à faire avant interprétation finale : regarder la distribution des différences sujet par sujet. "
+    "Si une comparaison est dominée par des valeurs extrêmes ou très asymétrique, elle sera confirmée par un Wilcoxon apparié.*"))''')
     md("""### Lien avec le notebook aseg : magnitude de l'écart (non signée)
 
 Jusqu'ici l'écart est **signé** (sens et quantité). L'ancien notebook aseg regardait autre chose : la **magnitude** de l'erreur, `|T − R| / R`, toujours positive, moyennée sur les volumes de structures. C'est « de combien on s'éloigne du brut », sans le sens. Ci-dessous, cette même lentille recalculée depuis la source unifiée (structures aseg à base > 100 mm³), pour relier l'ancien et le nouveau.""")
