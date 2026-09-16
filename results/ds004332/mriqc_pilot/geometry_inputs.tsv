@@ -1,0 +1,16 @@
+support	file	shape	zooms_mm	orientation	affine_det
+brain-only	sub-19_acq-aa1_run-01_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-aa1_run-02_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-aa1_run-03_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-aa4_run-01_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-aa4_run-02_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-aa4_run-03_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-jdac_run-01_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-jdac_run-02_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-jdac_run-03_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-preproc_run-01_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-preproc_run-02_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+brain-only	sub-19_acq-preproc_run-03_T1w.nii.gz	278x314x278	1.0000x1.0000x1.0000	LAS	-1
+full-head	sub-19_acq-raw_run-01_T1w.nii	192x256x256	0.9000x0.9375x0.9375	RAS	0.79101697
+full-head	sub-19_acq-raw_run-02_T1w.nii	192x256x256	0.9000x0.9375x0.9375	RAS	0.79101697
+full-head	sub-19_acq-raw_run-03_T1w.nii	192x256x256	0.9000x0.9375x0.9375	RAS	0.79101697
