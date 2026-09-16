@@ -1,68 +1,183 @@
 #!/usr/bin/env python3
+"""Extraire et qualifier les IQM du pilote MRIQC de ``sub-19``.
+
+Ce script ne recalcule aucune métrique. Il rassemble les JSON produits par
+MRIQC, puis attribue à chaque IQM un rôle méthodologique explicite pour les
+sorties brain-only. Une valeur finie et variable n'est pas automatiquement
+considérée comme comparable ou scientifiquement valide.
 """
-Extraction et qualification des IQM MRIQC — pilote sub-19 (14/09/2026).
 
-CE QUE FAIT CE SCRIPT (c'est exactement le code lancé par l'assistant, mis au propre) :
-  1. lit les 15 fichiers JSON produits par MRIQC (12 brain-only + 3 brut) ;
-  2. garde uniquement les clés numériques = les IQM (68 par image) ;
-  3. construit une table image x IQM et l'écrit dans iqm_table.csv ;
-  4. pour chaque IQM, sur les 12 sorties brain-only, décide si elle est
-     exploitable ou non, et écrit iqm_qualification_brainonly.csv.
+from __future__ import annotations
 
-Il ne CALCULE aucune métrique : MRIQC les a déjà calculées. On ne fait que lire,
-ranger et classer. Aucune conclusion scientifique : un seul sujet.
+import argparse
+import csv
+import json
+import math
+import re
+from pathlib import Path
 
-Lancer :  python3 extract_iqm.py
-"""
-import json, glob, os, re
-import pandas as pd
-from collections import Counter
 
-# Dossier du pilote (contient output_brainonly/ et output_raw/ produits par MRIQC)
-P = os.path.dirname(os.path.abspath(__file__))
+META = ("group", "acq", "run")
 
-# --- 1) Lire les JSON d'IQM des deux groupes -------------------------------
-rows = []
-for groupe, dossier in [("brainonly", "output_brainonly"), ("raw", "output_raw")]:
-    # MRIQC range un JSON par image dans <dossier>/sub-19/anat/
-    for j in sorted(glob.glob(f"{P}/{dossier}/sub-19/anat/*_T1w.json")):
-        d = json.load(open(j))
-        nom = os.path.basename(j)                      # sub-19_acq-XXX_run-YY_T1w.json
-        m = re.search(r"acq-([^_]+)_run-(\d+)", nom)   # -> condition et run
-        # On ne garde que les valeurs numériques (les 68 IQM). On écarte les
-        # bool et les blocs bids_meta/provenance qui ne sont pas des mesures.
-        iqm = {k: v for k, v in d.items()
-               if isinstance(v, (int, float)) and not isinstance(v, bool)}
-        rows.append({"group": groupe, "acq": m.group(1), "run": m.group(2), **iqm})
 
-df = pd.DataFrame(rows)
-meta = ["group", "acq", "run"]
-iqm_cols = [c for c in df.columns if c not in meta]
-df.to_csv(f"{P}/iqm_table.csv", index=False)          # <- table brute traçable
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--brain-json-dir",
+        type=Path,
+        required=True,
+        help="Dossier contenant les 12 JSON MRIQC brain-only.",
+    )
+    parser.add_argument(
+        "--raw-json-dir",
+        type=Path,
+        required=True,
+        help="Dossier contenant les trois JSON MRIQC full-head.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="Dossier des deux CSV produits.",
+    )
+    return parser.parse_args()
 
-# --- 2) Classer chaque IQM sur les sorties brain-only ----------------------
-# Métriques calculées à partir du FOND / de l'air autour de la tête : elles
-# n'ont pas de sens sur une image skull-strippée (fond = 0). On les repère
-# par leur nom.
-FOND = ("fber", "qi_1", "qi_2", "snrd", "summary_bg")
 
-def classe(col, sous_df):
-    v = pd.to_numeric(sous_df[col], errors="coerce")
-    n, nan = len(v), int(v.isna().sum())
-    if nan == n:                       return "echouee"          # NaN partout
-    if any(t in col for t in FOND):    return "biaisee_support" # métrique de fond
-    if (v == -1).all():                return "biaisee_support" # sentinelle -1
-    if nan > 0:                        return "invalide_partiel"
-    if v.nunique() <= 1:               return "constante"       # même valeur -> non informative
-    return "comparable"                                          # finie et variable
+def read_rows(group: str, directory: Path) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for path in sorted(directory.glob("*_T1w.json")):
+        match = re.search(r"acq-([^_]+)_run-(\d+)", path.name)
+        if match is None:
+            raise ValueError(f"Nom BIDS non reconnu : {path.name}")
+        with path.open(encoding="utf-8") as stream:
+            payload = json.load(stream)
+        iqm = {
+            key: value
+            for key, value in payload.items()
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+        }
+        rows.append(
+            {
+                "group": group,
+                "acq": match.group(1),
+                "run": match.group(2),
+                **iqm,
+            }
+        )
+    return rows
 
-bo = df[df.group == "brainonly"]
-cls = {c: classe(c, bo) for c in iqm_cols}
-pd.DataFrame({"iqm": iqm_cols, "classe_brainonly": [cls[c] for c in iqm_cols]}) \
-  .to_csv(f"{P}/iqm_qualification_brainonly.csv", index=False)
 
-# --- 3) Résumé à l'écran ---------------------------------------------------
-print(f"{len(df)} volumes | {len(iqm_cols)} IQM | classement brain-only :")
-for k, n in Counter(cls.values()).most_common():
-    print(f"  {k:18}: {n}")
-print("CSV : iqm_table.csv, iqm_qualification_brainonly.csv")
+def finite_values(rows: list[dict[str, object]], key: str) -> list[float]:
+    values: list[float] = []
+    for row in rows:
+        value = row.get(key)
+        if isinstance(value, (int, float)) and math.isfinite(float(value)):
+            values.append(float(value))
+    return values
+
+
+def scientific_role(iqm: str) -> tuple[str, str]:
+    """Retourner une décision prudente et sa justification."""
+    if iqm in {"fber", "qi_1", "qi_2"} or iqm.startswith(
+        ("snrd_", "summary_bg_")
+    ):
+        return (
+            "invalide_brainonly",
+            "dépend du fond ou de l'air supprimé par le skull-stripping",
+        )
+    if iqm.startswith(("size_", "spacing_")):
+        return (
+            "controle_geometrie",
+            "décrit la grille commune et non la qualité ou le mouvement",
+        )
+    if iqm == "cjv" or iqm.startswith("snr_"):
+        return (
+            "candidate_tissulaire",
+            "calculable à support fixe ; association à la morphométrie à tester",
+        )
+    if iqm == "cnr":
+        return (
+            "candidate_conditionnelle",
+            "calculée malgré un bruit de l'air nul ; ne pas comparer au full-head",
+        )
+    if iqm == "efc":
+        return (
+            "diagnostic_support",
+            "sensible au support, à la grille et au zero-padding",
+        )
+    if iqm.startswith("fwhm_"):
+        return (
+            "diagnostic_lissage",
+            "décrit le lissage ; ne prouve pas la fidélité anatomique",
+        )
+    if iqm.startswith(("rpve_", "icvs_", "tpm_overlap_")):
+        return (
+            "secondaire_segmentation",
+            "dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer",
+        )
+    if iqm.startswith(("inu_", "summary_csf_", "summary_gm_", "summary_wm_")) or iqm == "wm2max":
+        return (
+            "secondaire_intensite",
+            "diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",
+        )
+    return ("a_revoir", "rôle non défini dans le protocole du pilote")
+
+
+def write_table(rows: list[dict[str, object]], columns: list[str], path: Path) -> None:
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(META) + columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def main() -> None:
+    args = parse_args()
+    rows = read_rows("brainonly", args.brain_json_dir) + read_rows(
+        "raw", args.raw_json_dir
+    )
+    brain_rows = [row for row in rows if row["group"] == "brainonly"]
+    raw_rows = [row for row in rows if row["group"] == "raw"]
+    if len(brain_rows) != 12 or len(raw_rows) != 3:
+        raise RuntimeError(
+            f"Pilote incomplet : {len(brain_rows)} brain-only et {len(raw_rows)} raw"
+        )
+
+    iqm_columns = sorted({key for row in rows for key in row if key not in META})
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    write_table(rows, iqm_columns, args.output_dir / "iqm_table.csv")
+
+    qualification_path = args.output_dir / "iqm_qualification_brainonly.csv"
+    with qualification_path.open("w", newline="", encoding="utf-8") as stream:
+        fields = (
+            "iqm",
+            "decision_brainonly",
+            "raison",
+            "n_finite",
+            "n_total",
+            "n_unique_finite",
+        )
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        for iqm in iqm_columns:
+            values = finite_values(brain_rows, iqm)
+            decision, reason = scientific_role(iqm)
+            writer.writerow(
+                {
+                    "iqm": iqm,
+                    "decision_brainonly": decision,
+                    "raison": reason,
+                    "n_finite": len(values),
+                    "n_total": len(brain_rows),
+                    "n_unique_finite": len(set(values)),
+                }
+            )
+
+    print(
+        f"{len(rows)} volumes, {len(iqm_columns)} IQM -> "
+        f"{args.output_dir / 'iqm_table.csv'}"
+    )
+    print(f"Qualification prudente -> {qualification_path}")
+
+
+if __name__ == "__main__":
+    main()

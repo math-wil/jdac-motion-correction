@@ -1,69 +1,69 @@
-iqm,classe_brainonly
-cjv,comparable
-cnr,comparable
-efc,comparable
-fber,biaisee_support
-fwhm_avg,comparable
-fwhm_x,comparable
-fwhm_y,comparable
-fwhm_z,comparable
-icvs_csf,comparable
-icvs_gm,comparable
-icvs_wm,comparable
-inu_med,comparable
-inu_range,comparable
-qi_1,biaisee_support
-qi_2,biaisee_support
-rpve_csf,comparable
-rpve_gm,comparable
-rpve_wm,comparable
-size_x,constante
-size_y,constante
-size_z,constante
-snr_csf,comparable
-snr_gm,comparable
-snr_total,comparable
-snr_wm,comparable
-snrd_csf,biaisee_support
-snrd_gm,biaisee_support
-snrd_total,biaisee_support
-snrd_wm,biaisee_support
-spacing_x,constante
-spacing_y,constante
-spacing_z,constante
-summary_bg_k,biaisee_support
-summary_bg_mad,biaisee_support
-summary_bg_mean,biaisee_support
-summary_bg_median,biaisee_support
-summary_bg_n,biaisee_support
-summary_bg_p05,biaisee_support
-summary_bg_p95,biaisee_support
-summary_bg_stdv,biaisee_support
-summary_csf_k,comparable
-summary_csf_mad,comparable
-summary_csf_mean,comparable
-summary_csf_median,comparable
-summary_csf_n,comparable
-summary_csf_p05,constante
-summary_csf_p95,comparable
-summary_csf_stdv,comparable
-summary_gm_k,comparable
-summary_gm_mad,comparable
-summary_gm_mean,comparable
-summary_gm_median,comparable
-summary_gm_n,comparable
-summary_gm_p05,comparable
-summary_gm_p95,comparable
-summary_gm_stdv,comparable
-summary_wm_k,comparable
-summary_wm_mad,comparable
-summary_wm_mean,comparable
-summary_wm_median,comparable
-summary_wm_n,comparable
-summary_wm_p05,comparable
-summary_wm_p95,comparable
-summary_wm_stdv,comparable
-tpm_overlap_csf,comparable
-tpm_overlap_gm,comparable
-tpm_overlap_wm,comparable
-wm2max,comparable
+iqm,decision_brainonly,raison,n_finite,n_total,n_unique_finite
+cjv,candidate_tissulaire,calculable à support fixe ; association à la morphométrie à tester,12,12,12
+cnr,candidate_conditionnelle,calculée malgré un bruit de l'air nul ; ne pas comparer au full-head,12,12,12
+efc,diagnostic_support,"sensible au support, à la grille et au zero-padding",12,12,12
+fber,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,4,12,2
+fwhm_avg,diagnostic_lissage,décrit le lissage ; ne prouve pas la fidélité anatomique,12,12,12
+fwhm_x,diagnostic_lissage,décrit le lissage ; ne prouve pas la fidélité anatomique,12,12,12
+fwhm_y,diagnostic_lissage,décrit le lissage ; ne prouve pas la fidélité anatomique,12,12,12
+fwhm_z,diagnostic_lissage,décrit le lissage ; ne prouve pas la fidélité anatomique,12,12,12
+icvs_csf,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+icvs_gm,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+icvs_wm,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+inu_med,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+inu_range,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+qi_1,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+qi_2,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+rpve_csf,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+rpve_gm,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+rpve_wm,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+size_x,controle_geometrie,décrit la grille commune et non la qualité ou le mouvement,12,12,1
+size_y,controle_geometrie,décrit la grille commune et non la qualité ou le mouvement,12,12,1
+size_z,controle_geometrie,décrit la grille commune et non la qualité ou le mouvement,12,12,1
+snr_csf,candidate_tissulaire,calculable à support fixe ; association à la morphométrie à tester,12,12,12
+snr_gm,candidate_tissulaire,calculable à support fixe ; association à la morphométrie à tester,12,12,12
+snr_total,candidate_tissulaire,calculable à support fixe ; association à la morphométrie à tester,12,12,12
+snr_wm,candidate_tissulaire,calculable à support fixe ; association à la morphométrie à tester,12,12,12
+snrd_csf,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+snrd_gm,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+snrd_total,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+snrd_wm,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+spacing_x,controle_geometrie,décrit la grille commune et non la qualité ou le mouvement,12,12,1
+spacing_y,controle_geometrie,décrit la grille commune et non la qualité ou le mouvement,12,12,1
+spacing_z,controle_geometrie,décrit la grille commune et non la qualité ou le mouvement,12,12,1
+summary_bg_k,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_bg_mad,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_bg_mean,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_bg_median,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_bg_n,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,12
+summary_bg_p05,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_bg_p95,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_bg_stdv,invalide_brainonly,dépend du fond ou de l'air supprimé par le skull-stripping,12,12,1
+summary_csf_k,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_csf_mad,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_csf_mean,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_csf_median,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_csf_n,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_csf_p05,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,1
+summary_csf_p95,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_csf_stdv,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_k,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_mad,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_mean,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_median,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_n,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_p05,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_p95,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_gm_stdv,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_k,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_mad,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_mean,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_median,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_n,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_p05,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_p95,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+summary_wm_stdv,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
+tpm_overlap_csf,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+tpm_overlap_gm,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+tpm_overlap_wm,secondaire_segmentation,dépend de la segmentation MRIQC ; ne remplace pas FreeSurfer,12,12,12
+wm2max,secondaire_intensite,"diagnostic de tissus ou de preprocessing, pas mesure directe du mouvement",12,12,12
