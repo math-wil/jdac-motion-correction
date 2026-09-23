@@ -61,9 +61,65 @@ def same_grid(first, second):
     return {"shape": list(a.shape), "affine": a.affine.tolist()}
 
 
+def make_mask_qc(items, out_root):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import nibabel as nib
+    import numpy as np
+
+    fig, axes = plt.subplots(len(items), 5, figsize=(19, 29))
+    records = []
+    for row, (sid, raw) in enumerate(items):
+        brain, mask_path, _ = paths(out_root, sid)
+        if not brain.is_file() or not mask_path.is_file():
+            raise RuntimeError(f"SynthStrip incomplet pour {sid}")
+        same_grid(raw, brain)
+        same_grid(raw, mask_path)
+        image = nib.as_closest_canonical(nib.load(str(raw)))
+        mask_image = nib.as_closest_canonical(nib.load(str(mask_path)))
+        data = image.get_fdata(dtype=np.float32)
+        mask = mask_image.get_fdata() > 0.5
+        if not mask.any():
+            raise RuntimeError(f"Masque vide pour {sid}")
+        low, high = np.percentile(data[mask], (1, 99))
+        if high <= low:
+            raise RuntimeError(f"Intensités constantes pour {sid}")
+        volume_mm3 = float(mask.sum() * abs(np.linalg.det(image.affine[:3, :3])))
+        extent = np.array(np.nonzero(mask))
+        lo, hi = extent.min(axis=1), extent.max(axis=1)
+        xs = [int(lo[0] + f * (hi[0] - lo[0])) for f in (0.35, 0.65)]
+        ys = [int((lo[1] + hi[1]) / 2)]
+        zs = [int(lo[2] + f * (hi[2] - lo[2])) for f in (0.25, 0.65)]
+        slices = [(0, x, f"sag {x}") for x in xs]
+        slices += [(1, y, f"cor {y}") for y in ys]
+        slices += [(2, z, f"ax {z}") for z in zs]
+        for col, (axis, index, label) in enumerate(slices):
+            raw_slice = np.rot90(np.take(data, index, axis=axis))
+            mask_slice = np.rot90(np.take(mask, index, axis=axis))
+            ax = axes[row, col]
+            ax.imshow(np.clip((raw_slice - low) / (high - low), 0, 1),
+                      cmap="gray", vmin=0, vmax=1)
+            if mask_slice.any() and not mask_slice.all():
+                ax.contour(mask_slice.astype(float), levels=[0.5], colors="red", linewidths=0.7)
+            ax.set_title(label, fontsize=8)
+            ax.axis("off")
+        axes[row, 0].text(-0.07, 0.5, sid, va="center", ha="right",
+                          rotation=90, transform=axes[row, 0].transAxes, fontsize=9)
+        records.append({"id": sid, "raw": str(raw), "mask": str(mask_path),
+                        "mask_volume_mm3": round(volume_mm3, 1)})
+        print(f"{sid} : volume du masque = {volume_mm3:.0f} mm³")
+    fig.tight_layout()
+    output = out_root / "mask_qc.png"
+    fig.savefig(output, dpi=130)
+    plt.close(fig)
+    print(f"Montage à inspecter : {output}")
+    return records
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("check", "strip", "jdac"), default="check")
+    parser.add_argument("--stage", choices=("check", "strip", "qc", "jdac"), default="check")
     parser.add_argument("--raw-root", type=Path, default=Path.home() / "Documents/raw_datasets/ds004332")
     parser.add_argument("--out-root", type=Path, default=Path.home() / "Documents/derivatives/ds004332/jdac_minimal_pilot")
     parser.add_argument("--jdac-root", type=Path, default=Path.home() / "Documents/jdac")
@@ -124,6 +180,10 @@ def main():
                             "mask": str(mask), "status": status, "grid": grid})
             print(f"{sid} : masque et cerveau {status}, grille native vérifiée")
         print("ARRÊT : inspecter visuellement les neuf masques avant --stage jdac.")
+
+    if args.stage == "qc":
+        records = make_mask_qc(items, args.out_root)
+        print("Ce montage ne valide pas automatiquement les masques ; l'inspecter avant JDAC.")
 
     if args.stage == "jdac":
         if not args.mask_reviewed:

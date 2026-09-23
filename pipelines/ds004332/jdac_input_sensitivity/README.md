@@ -20,9 +20,10 @@ PY="$HOME/miniconda3/envs/cortical-motion/bin/python"
 P="pipelines/ds004332/jdac_input_sensitivity/run_minimal_pilot.py"
 "$PY" "$P" --stage check
 "$PY" "$P" --stage strip
+"$PY" "$P" --stage qc
 ```
 
-`check` ne crée rien : il vérifie les neuf T1w, SynthStrip, le code JDAC et les deux poids. `strip` crée neuf cerveaux et neuf masques en grille native, puis contrôle forme et affine. **Arrêt et examen visuel des neuf masques** : tissu cortical préservé, pas de coupe du cervelet, pas de déplacement. Après cet examen seulement :
+`check` ne crée rien : il vérifie les neuf T1w, SynthStrip, le code JDAC et les deux poids. `strip` crée neuf cerveaux et neuf masques en grille native, puis contrôle forme et affine. `qc` crée `mask_qc.png`, avec les neuf masques superposés aux images brutes dans plusieurs plans, et `qc_manifest.json`, qui donne le volume de chaque masque en mm³. **Arrêt et examen visuel des neuf masques** : tissu cortical préservé, pas de coupe du cervelet, pas de déplacement. Après cet examen seulement :
 
 ```bash
 "$PY" "$P" --stage jdac --mask-reviewed
