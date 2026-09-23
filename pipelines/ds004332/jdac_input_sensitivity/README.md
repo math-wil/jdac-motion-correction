@@ -1,6 +1,6 @@
 # Sensibilité de JDAC à la préparation d'entrée
 
-**Statut : protocole proposé ; aucun traitement lancé.** Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte.
+**Statut au 23 septembre : exécution préparée ; aucun traitement lancé.** Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
 
 ## Images et conditions
 
@@ -9,7 +9,26 @@ Neuf T1w `acq-mpragepmcoff_rec-wore` déjà présents sur le PC labo : `sub-17`,
 - **Ancienne paire, déjà calculée :** brut → N4 → rigide → SynthStrip (`preproc_rigid`) → JDAC complet (`jdac_rigid`).
 - **Nouvelle paire :** le même brut → SynthStrip seul, en géométrie native (`preproc_minimal`) → le même JDAC complet et les mêmes poids (`jdac_minimal`). Pas de N4, de recalage ni de normalisation manuelle ajoutée avant le script JDAC. Ce script recadre, normalise et padde lui-même le cerveau extrait avant le réseau.
 
-Les T1w bruts restent à leur emplacement BIDS. Les nouvelles images, masques et journaux iront dans `~/Documents/derivatives/ds004332/jdac_minimal_pilot/` sur le PC labo, hors Git ; aucune sortie historique ne sera remplacée. Le code d'inférence historique reste dans `../phase3_JDAC/run_jdac.py`. Un éventuel script de préparation du pilote sera rangé **ici**, pas dans la phase 3.
+Les T1w bruts restent à leur emplacement BIDS. Les nouvelles images, masques et journaux iront dans `~/Documents/derivatives/ds004332/jdac_minimal_pilot/` sur le PC labo, hors Git ; aucune sortie historique ne sera remplacée. Le pilote utilise `run_minimal_pilot.py`, qui appelle le SynthStrip du labo puis réutilise le code d'inférence historique `../phase3_JDAC/run_jdac.py` et les mêmes poids. Il n'y a pas de nouveau modèle ou de nouvelle variante JDAC.
+
+## Exécution préparée sur le PC labo
+
+Avec l'environnement `cortical-motion` et depuis `~/Documents/jdac-motion-correction` :
+
+```bash
+PY="$HOME/miniconda3/envs/cortical-motion/bin/python"
+P="pipelines/ds004332/jdac_input_sensitivity/run_minimal_pilot.py"
+"$PY" "$P" --stage check
+"$PY" "$P" --stage strip
+```
+
+`check` ne crée rien : il vérifie les neuf T1w, SynthStrip, le code JDAC et les deux poids. `strip` crée neuf cerveaux et neuf masques en grille native, puis contrôle forme et affine. **Arrêt et examen visuel des neuf masques** : tissu cortical préservé, pas de coupe du cervelet, pas de déplacement. Après cet examen seulement :
+
+```bash
+"$PY" "$P" --stage jdac --mask-reviewed
+```
+
+Cette étape produit neuf sorties JDAC dans `jdac_minimal/`, vérifie leur grille contre l'entrée brain-only et inscrit l'empreinte SHA-256 des deux poids dans `jdac_manifest.json`. Chaque étape saute une sortie complète déjà présente sans écraser les images historiques. Si une sortie est incomplète ou si la géométrie diffère, le script s'arrête. Les sorties et manifestes restent hors Git. **Ces commandes sont préparées, non exécutées au 23 septembre.**
 
 ## Comparaisons prévues
 
@@ -21,8 +40,8 @@ Les résultats FreeSurfer à examiner sont l'épaisseur (mm), la surface (mm²),
 
 ## Ordre d'exécution et contrôle
 
-1. Sur le PC labo : SynthStrip puis inférence JDAC sur les neuf images ; vérifier le masque (cortex, cervelet), les dimensions, l'affine, l'intensité et la superposition des mêmes coupes avec une fenêtre fixe. **Arrêt ici pour examen des images.**
-2. Si ce contrôle passe : FreeSurfer sur les neuf `preproc_minimal` et neuf `jdac_minimal` (18 nouvelles reconstructions), avec la même version et la même procédure `-noskullstrip`. Documenter les options liées au champ de vue, notamment `-cw256` utilisé par l'ancienne grille MNI élargie.
+1. Sur le PC labo : vérifier les neuf sources, créer les neuf cerveaux et masques, puis inspecter les masques avant JDAC. Faire ensuite l'inférence sur ces neuf cerveaux, vérifier les dimensions, l'affine, l'intensité et la superposition des mêmes coupes avec une fenêtre fixe. **Arrêt ici pour examen des images.**
+2. Si ce contrôle passe et si le calcul est autorisé : FreeSurfer sur les neuf `preproc_minimal` et neuf `jdac_minimal` (18 nouvelles reconstructions), avec la même version et la même procédure `-noskullstrip`. Documenter les options liées au champ de vue ; ne pas recopier automatiquement `-cw256`, introduit pour l'ancienne grille MNI élargie.
 3. Les métriques d'image éventuelles devront employer une région et une règle d'intensité fixées indépendamment de la sortie. Le script historique `compute_image_metrics.py` renormalise chaque image séparément et ne doit pas être repris tel quel pour conclure à la fidélité des intensités ou des contours.
 
 **Repère sur l'article JDAC.** Sur MR-ART, les auteurs ont une image bougée et un scan immobile correspondant, tous deux extraits du crâne et normalisés ; ils ajoutent du bruit gaussien à l'image bougée du test. Ils comparent la **sortie** de chaque méthode au **scan immobile correspondant**, pas à son entrée bougée ni au T1w natif avec crâne. Ils rapportent PSNR, RMSE, SSIM et MS-SSIM sur l'image (débruitage) et sur les cartes de gradients (artefacts de mouvement). Pour NBOLD, sans référence immobile, l'évaluation est qualitative. Source : [Zhang et al., sections 4.1–4.4](https://arxiv.org/html/2403.08162v1).

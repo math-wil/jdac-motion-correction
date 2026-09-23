@@ -83,7 +83,7 @@ Phase-level documentation:
 - `pipelines/ds004332/phase3_JDAC/README.md`
 - `pipelines/ds004332/phase4_compare_3bras/README.md`
 - `pipelines/ds004332/phase5_fidelity/README.md`
-- `pipelines/ds004332/jdac_input_sensitivity/README.md` — proposed, not yet run
+- `pipelines/ds004332/jdac_input_sensitivity/README.md` — prepared, not yet run
 
 Educational explorer:
 
