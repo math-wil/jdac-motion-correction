@@ -23,32 +23,35 @@ des correcteurs. L'article JDAC décrit une extraction du cerveau et une mise à
 l'échelle des intensités entre 0 et 1 ; le script d'inférence utilisé ici fait
 lui-même le recadrage, la mise à l'échelle et le padding, mais pas l'extraction.
 
-- Six acquisitions pré-sélectionnées, sans regarder le résultat du nouveau bras :
-  `sub-17`, `sub-13`, `sub-14`, chacun en `run-01` et `run-03`. Source BIDS :
+- Neuf acquisitions pré-sélectionnées, sans regarder le résultat du nouveau bras :
+  `sub-17`, `sub-13`, `sub-14`, chacun en `run-01`, `run-02` et `run-03`. Source BIDS :
   `acq-mpragepmcoff_rec-wore`, comme dans `phase2_PREPROC/preproc.py`.
 - Bras minimal : T1w brut → SynthStrip seul, sans N4 ni recalage → JDAC complet
   avec les mêmes poids et paramètres que le bras rigide. Référencer le T1w brut
-  existant sans le recopier ; conserver
-  le masque, le cerveau extrait, l'entrée effectivement remise au réseau et la
-  sortie, avec leur géométrie et leur provenance. Les nouveaux dérivés iront
-  dans un dossier `jdac_minimal_pilot/` hors Git ; aucun ancien résultat écrasé.
+  existant sans le recopier ; conserver le masque, le cerveau extrait
+  (`preproc_minimal`) et la sortie JDAC (`jdac_minimal`), avec leur géométrie et
+  leur provenance. Le recadrage, la normalisation et le padding sont effectués
+  automatiquement dans l'inférence, après lecture de `preproc_minimal`. Les
+  nouveaux dérivés iront dans `jdac_minimal_pilot/` hors Git ; aucun ancien
+  résultat écrasé.
 - Contrôle initial, **avant FreeSurfer** : masque (notamment cortex et cervelet),
   grille/affine, remise en place après crop/padding, intensités, montage sur les
   mêmes coupes et même fenêtre. Si un masque ou une géométrie échoue, arrêter et
   documenter le cas au lieu de l'interpréter comme un échec du réseau.
 - Si le contrôle passe : FreeSurfer avec la même version et la même procédure
-  à deux passes avec `-noskullstrip` pour le cerveau minimal, son entrée
-  normalisée sans réseau et la sortie JDAC. Produire également l'entrée
-  normalisée **sans réseau** du bras rigide, afin de comparer l'ajout de JDAC
-  sur une échelle d'intensité identique dans les deux bras. Les reconstructions
-  du cerveau rigide non normalisé et de sa sortie JDAC existent déjà.
-  Documenter `-cw256` selon le champ de vue, car le bras rigide utilise une
-  grille MNI élargie. Comparer épaisseur (mm), surface (mm²), volume cortical
-  et sous-cortical (mm³), échecs et QC. Contraste principal : JDAC moins son
-  entrée normalisée, calculé séparément pour le bras minimal et le bras rigide.
-  `run-01` vérifie la préservation du scan presque immobile ; `run-03` vérifie
-  le scan bougé. Le sujet est l'unité de lecture ; six images ne démontrent ni
-  équivalence ni supériorité générale.
+  à deux passes avec `-noskullstrip` pour `preproc_minimal` et `jdac_minimal`
+  (18 nouvelles reconstructions pour neuf acquisitions). Documenter `-cw256`
+  selon le champ de vue, car le bras rigide utilise une grille MNI élargie.
+  Comparaison directe principale : `jdac_minimal − preproc_minimal` sur
+  épaisseur (mm), surface (mm²), volumes corticaux et sous-corticaux (mm³),
+  échecs et QC ; la comparer au contraste `jdac_rigid − preproc_rigid` déjà
+  mesuré. Pour dire si l'anatomie se rapproche de la référence, calculer aussi
+  l'erreur de chacun par rapport au `brut/run-01` du même sujet, en le nommant
+  référence opérationnelle et non vérité anatomique. `run-01` teste la
+  préservation du scan presque immobile ; `run-02/03` testent les scans bougés.
+  Un témoin normalisé sans réseau ne serait ajouté que pour une question
+  distincte : isoler l'effet des transformations internes de l'inférence.
+  Trois sujets ne démontrent ni équivalence ni supériorité générale.
 - Métriques d'image : définir un support cérébral et une transformation
   d'intensité communs, indépendants de la sortie testée. Ne pas réutiliser
   directement `compute_image_metrics.py` pour conclure : ce script renormalise
