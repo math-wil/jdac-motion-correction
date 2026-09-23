@@ -117,9 +117,59 @@ def make_mask_qc(items, out_root):
     return records
 
 
+def make_jdac_qc(items, out_root):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import nibabel as nib
+    import numpy as np
+
+    fig, axes = plt.subplots(len(items), 6, figsize=(22, 29))
+    records = []
+    for row, (sid, _) in enumerate(items):
+        brain, mask_path, corrected_path = paths(out_root, sid)
+        if not all(path.is_file() for path in (brain, mask_path, corrected_path)):
+            raise RuntimeError(f"Paire JDAC incomplète pour {sid}")
+        same_grid(brain, corrected_path)
+        same_grid(brain, mask_path)
+        before = nib.as_closest_canonical(nib.load(str(brain))).get_fdata(dtype=np.float32)
+        after = nib.as_closest_canonical(nib.load(str(corrected_path))).get_fdata(dtype=np.float32)
+        mask = nib.as_closest_canonical(nib.load(str(mask_path))).get_fdata() > 0.5
+        if not np.isfinite(after).all():
+            raise RuntimeError(f"Valeurs non finies dans la sortie JDAC pour {sid}")
+        foreground = np.array(np.nonzero(before > 0.01))
+        lo, hi = foreground.min(axis=1), foreground.max(axis=1) + 1
+        cropped = before[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]]
+        p0, p98 = np.percentile(cropped, (0, 98))
+        if p98 <= p0:
+            raise RuntimeError(f"Plage d'intensité invalide pour {sid}")
+        before_scaled = np.clip((before - p0) / (p98 - p0), 0, 1)
+        center = [int((a + b) / 2) for a, b in zip(lo, hi)]
+        for col, (volume, name) in enumerate(((before_scaled, "entrée"), (after, "JDAC"))):
+            for axis, plane in enumerate(("sag", "cor", "ax")):
+                ax = axes[row, 3 * col + axis]
+                ax.imshow(np.rot90(np.take(volume, center[axis], axis=axis)),
+                          cmap="gray", vmin=0, vmax=1)
+                ax.set_title(f"{name} {plane}", fontsize=8)
+                ax.axis("off")
+        axes[row, 0].text(-0.07, 0.5, sid, va="center", ha="right",
+                          rotation=90, transform=axes[row, 0].transAxes, fontsize=9)
+        mean_abs_change = float(np.mean(np.abs(after[mask] - before_scaled[mask])))
+        records.append({"id": sid, "brain": str(brain), "corrected": str(corrected_path),
+                        "mean_abs_change_0_1": round(mean_abs_change, 6),
+                        "corrected_min": float(after.min()), "corrected_max": float(after.max())})
+        print(f"{sid} : variation absolue moyenne = {mean_abs_change:.4f} sur [0,1]")
+    fig.tight_layout()
+    output = out_root / "jdac_qc.png"
+    fig.savefig(output, dpi=130)
+    plt.close(fig)
+    print(f"Montage à inspecter : {output}")
+    return records
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("check", "strip", "qc", "jdac"), default="check")
+    parser.add_argument("--stage", choices=("check", "strip", "qc", "jdac", "qc-jdac"), default="check")
     parser.add_argument("--raw-root", type=Path, default=Path.home() / "Documents/raw_datasets/ds004332")
     parser.add_argument("--out-root", type=Path, default=Path.home() / "Documents/derivatives/ds004332/jdac_minimal_pilot")
     parser.add_argument("--jdac-root", type=Path, default=Path.home() / "Documents/jdac")
@@ -184,6 +234,10 @@ def main():
     if args.stage == "qc":
         records = make_mask_qc(items, args.out_root)
         print("Ce montage ne valide pas automatiquement les masques ; l'inspecter avant JDAC.")
+
+    if args.stage == "qc-jdac":
+        records = make_jdac_qc(items, args.out_root)
+        print("Ce montage sert au contrôle technique, pas à juger la récupération anatomique.")
 
     if args.stage == "jdac":
         if not args.mask_reviewed:

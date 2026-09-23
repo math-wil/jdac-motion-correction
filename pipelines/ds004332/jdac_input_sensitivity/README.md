@@ -1,6 +1,6 @@
 # Sensibilité de JDAC à la préparation d'entrée
 
-**Statut au 23 septembre : exécution préparée ; aucun traitement lancé.** Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
+**Statut au 23 septembre : 9/9 extractions SynthStrip et 9/9 inférences JDAC terminées sur le PC labo ; contrôle visuel des sorties JDAC en cours ; aucun nouveau FreeSurfer.** Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
 
 ## Images et conditions
 
@@ -27,9 +27,10 @@ P="pipelines/ds004332/jdac_input_sensitivity/run_minimal_pilot.py"
 
 ```bash
 "$PY" "$P" --stage jdac --mask-reviewed
+"$PY" "$P" --stage qc-jdac
 ```
 
-Cette étape produit neuf sorties JDAC dans `jdac_minimal/`, vérifie leur grille contre l'entrée brain-only et inscrit l'empreinte SHA-256 des deux poids dans `jdac_manifest.json`. Chaque étape saute une sortie complète déjà présente sans écraser les images historiques. Si une sortie est incomplète ou si la géométrie diffère, le script s'arrête. Les sorties et manifestes restent hors Git. **Ces commandes sont préparées, non exécutées au 23 septembre.**
+L'inférence produit neuf sorties JDAC dans `jdac_minimal/`, vérifie leur grille contre l'entrée brain-only et inscrit l'empreinte SHA-256 des deux poids dans `jdac_manifest.json`. `qc-jdac` vérifie les valeurs finies et produit `jdac_qc.png`, qui montre les mêmes coupes pour l'entrée et la sortie, avec une fenêtre commune `[0,1]` après reproduction de la normalisation d'entrée. Ce montage sert au contrôle technique, pas à conclure à une récupération anatomique. Chaque étape saute une sortie complète déjà présente sans écraser les images historiques. Si une sortie est incomplète ou si la géométrie diffère, le script s'arrête. Les sorties et manifestes restent hors Git.
 
 ## Comparaisons prévues
 
