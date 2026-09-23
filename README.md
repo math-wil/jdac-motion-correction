@@ -62,6 +62,7 @@ FreeSurfer completion status for the rigid analysis:
 |       |-- phase3_JDAC/             # JDAC inference, ablations, and FreeSurfer scripts
 |       |-- phase4_compare_3bras/    # Historical folder name; now the 5-condition comparison
 |       |-- phase5_fidelity/         # aseg.stats volumes and central-structure fidelity
+|       |-- jdac_input_sensitivity/  # Separate pilot: JDAC with skull stripping only
 |       |-- agitation/               # Agitation motion-score processing
 |       |-- utils/                   # Narval transfer and cluster notes
 |       `-- _archive_clinica/        # Archived Clinica-affine experiment
@@ -82,6 +83,7 @@ Phase-level documentation:
 - `pipelines/ds004332/phase3_JDAC/README.md`
 - `pipelines/ds004332/phase4_compare_3bras/README.md`
 - `pipelines/ds004332/phase5_fidelity/README.md`
+- `pipelines/ds004332/jdac_input_sensitivity/README.md` — proposed, not yet run
 
 Educational explorer:
 
