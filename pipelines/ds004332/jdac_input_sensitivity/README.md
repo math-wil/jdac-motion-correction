@@ -1,8 +1,8 @@
 # Sensibilité de JDAC à la préparation d'entrée
 
-**Avancement du 23 septembre (plus récent que le statut ci-dessous) :** les 9/9 extractions et les 9/9 inférences sont terminées sur le PC labo. Les montages `mask_qc.png` et `jdac_qc.png` ont été examinés ; aucune coupure évidente de l'anatomie ou erreur de grille n'a été constatée. Le contrôle visuel ne prouve pas la fidélité morphométrique. La reconstruction FreeSurfer reste à exécuter.
+**Avancement du 23 septembre :** les 9/9 extractions et les 9/9 inférences sont terminées sur le PC labo. Les montages `mask_qc.png` et `jdac_qc.png` ont été examinés ; aucune coupure évidente de l'anatomie ou erreur de grille n'a été constatée. Les 18 entrées ont été transférées sur Narval et le job FreeSurfer `3850218` a été soumis. Aucun résultat morphométrique nouveau n'est encore disponible.
 
-**Statut au 23 septembre : 9/9 extractions SynthStrip et 9/9 inférences JDAC terminées sur le PC labo ; contrôle visuel des sorties JDAC en cours ; aucun nouveau FreeSurfer.** Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
+Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
 
 ## Images et conditions
 
@@ -37,6 +37,8 @@ L'inférence produit neuf sorties JDAC dans `jdac_minimal/`, vérifie leur grill
 ## Comparaisons prévues
 
 Le fichier `recon_all_minimal.sbatch` définit les 18 reconstructions : une par image (`preproc_minimal` puis `jdac_minimal`), avec trois jobs simultanés au maximum sur Narval. FreeSurfer 8.0.0-1, 8 CPU et 64 Go par job ; même procédure brain-only en deux passes que l'historique, sans `-cw256` (lié à l'ancienne grille MNI élargie). Les entrées, sorties et logs sont séparés sous `/project/ctb-sbouix/mathw/jdac_minimal_pilot/`. Un job soumis n'est pas un résultat FreeSurfer validé : `aseg.stats`, `lh.aparc.stats` et `rh.aparc.stats` doivent exister et leur qualité être vérifiée.
+
+Les références historiques nécessaires ont été vérifiées sur Narval pour ces sujets : 9/9 paires `preproc_rigid`, 9/9 paires `jdac_rigid` et 3/3 `brut/run-01` possèdent `aseg.stats` et les deux `aparc.stats`. Cela ne constitue pas encore un contrôle qualité de leurs segmentations.
 
 1. **Effet ajouté par JDAC dans chaque chaîne :** différence appariée `JDAC − preproc`, d'abord dans la nouvelle paire, puis dans l'ancienne. Cela mesure l'effet de l'outil *tel qu'exécuté*, y compris ses opérations internes de normalisation ; ce n'est pas l'effet du réseau seul.
 2. **Récupération morphométrique :** distance de `preproc_minimal` et `jdac_minimal` au `brut/run-01` du même sujet, comme référence opérationnelle commune. Une différence directe entre les deux conditions ne dit pas, à elle seule, laquelle est anatomiquement plus fidèle.
