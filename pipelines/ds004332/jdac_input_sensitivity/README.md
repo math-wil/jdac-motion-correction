@@ -1,5 +1,7 @@
 # Sensibilité de JDAC à la préparation d'entrée
 
+**Avancement du 23 septembre (plus récent que le statut ci-dessous) :** les 9/9 extractions et les 9/9 inférences sont terminées sur le PC labo. Les montages `mask_qc.png` et `jdac_qc.png` ont été examinés ; aucune coupure évidente de l'anatomie ou erreur de grille n'a été constatée. Le contrôle visuel ne prouve pas la fidélité morphométrique. La reconstruction FreeSurfer reste à exécuter.
+
 **Statut au 23 septembre : 9/9 extractions SynthStrip et 9/9 inférences JDAC terminées sur le PC labo ; contrôle visuel des sorties JDAC en cours ; aucun nouveau FreeSurfer.** Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
 
 ## Images et conditions
@@ -33,6 +35,8 @@ P="pipelines/ds004332/jdac_input_sensitivity/run_minimal_pilot.py"
 L'inférence produit neuf sorties JDAC dans `jdac_minimal/`, vérifie leur grille contre l'entrée brain-only et inscrit l'empreinte SHA-256 des deux poids dans `jdac_manifest.json`. `qc-jdac` vérifie les valeurs finies et produit `jdac_qc.png`, qui montre les mêmes coupes pour l'entrée et la sortie, avec une fenêtre commune `[0,1]` après reproduction de la normalisation d'entrée. Ce montage sert au contrôle technique, pas à conclure à une récupération anatomique. Chaque étape saute une sortie complète déjà présente sans écraser les images historiques. Si une sortie est incomplète ou si la géométrie diffère, le script s'arrête. Les sorties et manifestes restent hors Git.
 
 ## Comparaisons prévues
+
+Le fichier `recon_all_minimal.sbatch` définit les 18 reconstructions : une par image (`preproc_minimal` puis `jdac_minimal`), avec trois jobs simultanés au maximum sur Narval. FreeSurfer 8.0.0-1, 8 CPU et 64 Go par job ; même procédure brain-only en deux passes que l'historique, sans `-cw256` (lié à l'ancienne grille MNI élargie). Les entrées, sorties et logs sont séparés sous `/project/ctb-sbouix/mathw/jdac_minimal_pilot/`. Un job soumis n'est pas un résultat FreeSurfer validé : `aseg.stats`, `lh.aparc.stats` et `rh.aparc.stats` doivent exister et leur qualité être vérifiée.
 
 1. **Effet ajouté par JDAC dans chaque chaîne :** différence appariée `JDAC − preproc`, d'abord dans la nouvelle paire, puis dans l'ancienne. Cela mesure l'effet de l'outil *tel qu'exécuté*, y compris ses opérations internes de normalisation ; ce n'est pas l'effet du réseau seul.
 2. **Récupération morphométrique :** distance de `preproc_minimal` et `jdac_minimal` au `brut/run-01` du même sujet, comme référence opérationnelle commune. Une différence directe entre les deux conditions ne dit pas, à elle seule, laquelle est anatomiquement plus fidèle.
