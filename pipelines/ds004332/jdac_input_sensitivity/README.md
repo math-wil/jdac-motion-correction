@@ -1,6 +1,6 @@
 # Sensibilité de JDAC à la préparation d'entrée
 
-**Avancement du 23 septembre :** les 9/9 extractions et les 9/9 inférences sont terminées sur le PC labo. Les montages `mask_qc.png` et `jdac_qc.png` ont été examinés ; aucune coupure évidente de l'anatomie ou erreur de grille n'a été constatée. Les 18 entrées ont été transférées sur Narval et le job FreeSurfer `3850218` a été soumis. Aucun résultat morphométrique nouveau n'est encore disponible.
+**Avancement du 24 septembre :** les 9/9 extractions et les 9/9 inférences sont terminées sur le PC labo ; les montages et la géométrie ont été contrôlés. Sur Narval, le job `3850218` a produit les trois fichiers `aseg.stats`, `lh.aparc.stats` et `rh.aparc.stats` pour 17/18 reconstructions. `preproc_minimal/sub-17_run-01` a échoué pendant FreeSurfer lorsque le groupe `def-sbouix` a dépassé son quota de nombre de fichiers. Son répertoire partiel et le dossier des logs ont été placés dans le groupe du projet `ctb-sbouix`, qui dispose de marge ; **seule cette tâche** a été resoumise (`3904648`, en attente au dernier contrôle). Aucune récupération morphométrique n'a encore été interprétée.
 
 Cette expérience est distincte de la phase 3 historique et du benchmark multi-correcteurs. Elle teste si N4 et le recalage rigide de **notre** chaîne modifient l'effet observé de JDAC. Elle ne cherche pas encore à isoler N4 du rigide ni à conclure sur toute la cohorte. Elle n'est **pas nécessaire** pour répondre à la question factuelle « à quelle référence les auteurs comparent-ils JDAC ? », ni un préalable au protocole de l'article d'évaluation.
 
@@ -37,6 +37,8 @@ L'inférence produit neuf sorties JDAC dans `jdac_minimal/`, vérifie leur grill
 ## Comparaisons prévues
 
 Le fichier `recon_all_minimal.sbatch` définit les 18 reconstructions : une par image (`preproc_minimal` puis `jdac_minimal`), avec trois jobs simultanés au maximum sur Narval. FreeSurfer 8.0.0-1, 8 CPU et 64 Go par job ; même procédure brain-only en deux passes que l'historique, sans `-cw256` (lié à l'ancienne grille MNI élargie). Les entrées, sorties et logs sont séparés sous `/project/ctb-sbouix/mathw/jdac_minimal_pilot/`. Un job soumis n'est pas un résultat FreeSurfer validé : `aseg.stats`, `lh.aparc.stats` et `rh.aparc.stats` doivent exister et leur qualité être vérifiée.
+
+Pour reprendre une reconstruction partielle, le script ne se fie plus à `recon-all.done` seul : FreeSurfer peut l'avoir écrit après la première passe alors que les statistiques finales manquent. Il ne saute une acquisition que si les trois fichiers `stats` existent aussi. La reprise exige un `T1.mgz` déjà présent ; sinon elle s'arrête pour examen manuel.
 
 Les références historiques nécessaires ont été vérifiées sur Narval pour ces sujets : 9/9 paires `preproc_rigid`, 9/9 paires `jdac_rigid` et 3/3 `brut/run-01` possèdent `aseg.stats` et les deux `aparc.stats`. Cela ne constitue pas encore un contrôle qualité de leurs segmentations.
 
